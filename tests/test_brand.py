@@ -1,6 +1,6 @@
 import pytest
 
-from surfaces.brand import COLORS, DARK_COLORS, accessible_tint, best_text_color, contrast_ratio
+from surfaces.brand import COLORS, DARK_COLORS, best_text_color, contrast_ratio, mix_hex
 
 
 def test_contrast_ratio_black_on_white_is_maximal():
@@ -27,38 +27,26 @@ def test_best_text_color_picks_dark_text_for_lucky_copper():
     assert best_text_color(DARK_COLORS["accent_copper"]) == "0D1B1E"
 
 
-def test_accessible_tint_returns_unchanged_when_already_passing():
-    # Dark mode's copper already clears 4.5:1 against its dark surface —
-    # tinting must be a no-op here, not darken/lighten a color that's fine.
-    bg = DARK_COLORS["surface"]
-    fg = DARK_COLORS["accent_copper"]
-    assert contrast_ratio(fg, bg) >= 4.5
-    assert accessible_tint(fg, bg) == fg
+def test_mix_hex_zero_returns_first_color():
+    assert mix_hex("4A5560", "F5F3EE", 0) == "4A5560"
 
 
-def test_accessible_tint_fixes_lucky_copper_text_on_light_surface():
-    # The exact reported bug: copper text on the light-mode card surface only
-    # reaches ~3.4:1. The tinted color must clear 4.5:1 while staying
-    # recognizably the same hue (not collapsing to plain black/white).
-    bg = COLORS["surface"]
-    fg = COLORS["lucky_copper"]
-    assert contrast_ratio(fg, bg) < 4.5
-    tinted = accessible_tint(fg, bg)
-    assert contrast_ratio(tinted, bg) >= 4.5
-    tinted_h, _, _ = __import__("colorsys").rgb_to_hls(
-        *(c / 255 for c in (int(tinted[0:2], 16), int(tinted[2:4], 16), int(tinted[4:6], 16)))
-    )
-    original_h, _, _ = __import__("colorsys").rgb_to_hls(
-        *(c / 255 for c in (int(fg[0:2], 16), int(fg[2:4], 16), int(fg[4:6], 16)))
-    )
-    assert abs(tinted_h - original_h) < 0.01
+def test_mix_hex_one_returns_second_color():
+    assert mix_hex("4A5560", "F5F3EE", 1) == "F5F3EE"
 
 
-def test_accessible_tint_fixes_signal_blue_link_text_on_page_background():
+def test_mix_hex_softens_light_mode_muted_text_toward_background():
+    # The reported complaint: light mode's raw text_secondary (a fairly dark
+    # slate) reads as "harsh" for small secondary text even though it passes
+    # contrast math. Blending it toward the background should measurably
+    # raise its luminance (lighten it) without reaching all the way to bg.
+    from surfaces.brand import _relative_luminance
+
+    original = COLORS["text_secondary"]
     bg = COLORS["bg"]
-    fg = COLORS["signal_blue"]
-    tinted = accessible_tint(fg, bg)
-    assert contrast_ratio(tinted, bg) >= 4.5
+    softened = mix_hex(original, bg, 0.35)
+    assert _relative_luminance(softened) > _relative_luminance(original)
+    assert _relative_luminance(softened) < _relative_luminance(bg)
 
 
 def test_best_text_color_meets_aa_contrast_for_all_tier_colors():

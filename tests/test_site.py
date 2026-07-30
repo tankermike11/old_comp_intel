@@ -107,28 +107,47 @@ def _extract_theme_block(css, selector_pattern):
     return dict(re.findall(r"(--[\w-]+):\s*(#[0-9A-Fa-f]+)", match.group(1)))
 
 
-def test_link_and_moderate_bucket_text_meet_aa_contrast_both_themes(conn, tmp_path):
-    # Regression test for the reported bug: --accent/--accent-warm used directly
-    # as small text (links, the "Moderate" bucket label, the convergence pill)
-    # must clear 4.5:1 against both backgrounds they can appear on, in both themes.
+def test_no_colored_hues_used_as_plain_text_color(conn, tmp_path):
+    # Regression test for the reported readability complaint: colored text
+    # (copper/blue/gray at small sizes) reads as harsh even when it passes
+    # contrast math. Color must now live only in badge/pill fills and
+    # borders — links, bucket labels, and pill text all use the neutral
+    # --fg (or --muted for genuinely de-emphasized text), never --accent
+    # or --accent-warm as a `color:` value.
     write_site(conn, out_dir=tmp_path / "dist")
     css = (tmp_path / "dist" / "assets" / "style.css").read_text(encoding="utf-8")
 
-    dark_default = _extract_theme_block(css, r":root")
+    # `re.search` with a negative lookbehind so "border-color:"/"background-color:"
+    # (both legitimately fine) don't false-positive-match a bare "color:" check.
+    assert not re.search(r"(?<![-\w])color: var\(--accent(-warm)?\)", css), (
+        "a plain (non-border) `color:` still points at --accent or --accent-warm"
+    )
+    assert "a { color: var(--fg)" in css
+    assert ".bucket-notable { color: var(--fg)" in css
+    assert ".bucket-urgent { color: var(--fg)" in css
+    assert ".badge-convergence { color: var(--fg)" in css
+    assert ".badge-cco { color: var(--fg)" in css
+    assert "details summary { cursor: pointer; color: var(--fg)" in css
+
+    # --accent/--accent-warm are still allowed as border-color / background —
+    # that's exactly where color is supposed to live now.
+    assert "border-color: var(--accent-warm)" in css
+
+
+def test_light_mode_muted_text_is_softened_not_raw_brand_gray(conn, tmp_path):
+    # The other half of the complaint: even the neutral secondary/meta text
+    # color (light mode's raw text_secondary, #4A5560) read as too heavy for
+    # small de-emphasized text. It must be lighter than the raw brand value,
+    # while still clearly distinguishable from the page background (not so
+    # soft it becomes illegible).
+    from surfaces.brand import COLORS, _relative_luminance
+
+    write_site(conn, out_dir=tmp_path / "dist")
+    css = (tmp_path / "dist" / "assets" / "style.css").read_text(encoding="utf-8")
     light_media = _extract_theme_block(css, r"@media \(prefers-color-scheme: light\)\s*{\s*:root")
 
-    for theme_name, tokens, backgrounds in [
-        ("dark", dark_default, [dark_default["--bg"], dark_default["--surface"]]),
-        ("light", light_media, [light_media["--bg"], light_media["--surface"]]),
-    ]:
-        for bg in backgrounds:
-            assert contrast_ratio(tokens["--accent-text"], bg) >= 4.5, (
-                f"{theme_name} --accent-text fails AA against {bg}"
-            )
-            assert contrast_ratio(tokens["--accent-warm-text"], bg) >= 4.5, (
-                f"{theme_name} --accent-warm-text fails AA against {bg}"
-            )
-
-    assert "color: var(--accent-text)" in css
-    assert ".bucket-notable { color: var(--accent-warm-text); }" in css
-    assert ".badge-convergence { color: var(--accent-warm-text);" in css
+    raw_muted = COLORS["text_secondary"]
+    softened_muted = light_media["--muted"]
+    assert softened_muted != f"#{raw_muted}"
+    assert _relative_luminance(softened_muted.lstrip("#")) > _relative_luminance(raw_muted)
+    assert contrast_ratio(softened_muted, light_media["--bg"]) >= 3.0

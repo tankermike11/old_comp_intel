@@ -15,7 +15,6 @@ python-pptx (deck.py) can only *request* Sora/Inter/IBM Plex Mono — if a
 viewer's machine doesn't have them installed, PowerPoint substitutes a
 fallback font, same as any other generated deck.
 """
-import colorsys
 
 COLORS = {
     "kennel_black": "0D1B1E",
@@ -119,30 +118,19 @@ def best_text_color(bg_hex, light_hex="F5F3EE", dark_hex="0D1B1E"):
     return light_hex if contrast_ratio(bg_hex, light_hex) >= contrast_ratio(bg_hex, dark_hex) else dark_hex
 
 
-def accessible_tint(hex_color, background_hex, target_ratio=4.5, max_steps=80):
-    """Darken or lighten hex_color (preserving its hue/saturation) just enough
-    to reach target_ratio contrast against background_hex.
-
-    For cases best_text_color can't handle: an accent used as small TEXT
-    (not a filled badge) needs to keep its identifying hue — swapping to
-    plain black/bone would erase which signal it's flagging (e.g. "this is
-    the copper/notable one"). Returns the color unchanged if it already
-    clears target_ratio, so this never darkens/lightens a color that didn't
-    need it (dark mode's accents already pass and come back untouched).
+def mix_hex(hex_a, hex_b, t):
+    """Linear RGB blend of hex_a toward hex_b by fraction t (0 = hex_a, 1 = hex_b).
+    Used to soften a color toward the background — the opposite move from
+    chasing maximum contrast: a "muted"/secondary text color is supposed to
+    recede, and a brand gray dark enough to pass a high contrast ratio can
+    still read as visually heavy ("harsh") at small sizes even though it's
+    technically legible. This tones it down deliberately.
     """
-    if contrast_ratio(hex_color, background_hex) >= target_ratio:
-        return hex_color
-
-    r, g, b = (c / 255 for c in hex_to_rgb(hex_color))
-    h, l, s = colorsys.rgb_to_hls(r, g, b)
-    bg_is_light = _relative_luminance(background_hex) > 0.5
-    step = -0.03 if bg_is_light else 0.03
-
-    current_hex = hex_color
-    for _ in range(max_steps):
-        l = max(0.0, min(1.0, l + step))
-        cur_r, cur_g, cur_b = colorsys.hls_to_rgb(h, l, s)
-        current_hex = "".join(f"{round(c * 255):02X}" for c in (cur_r, cur_g, cur_b))
-        if contrast_ratio(current_hex, background_hex) >= target_ratio or l in (0.0, 1.0):
-            break
-    return current_hex
+    ra, ga, ba = hex_to_rgb(hex_a)
+    rb, gb, bb = hex_to_rgb(hex_b)
+    mixed = (
+        round(ra + (rb - ra) * t),
+        round(ga + (gb - ga) * t),
+        round(ba + (bb - ba) * t),
+    )
+    return "".join(f"{c:02X}" for c in mixed)

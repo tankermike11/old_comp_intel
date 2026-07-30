@@ -35,8 +35,8 @@ from surfaces.brand import (
     FONT_BODY,
     FONT_HEADLINE,
     FONT_MONO,
-    accessible_tint,
     best_text_color,
+    mix_hex,
 )
 
 DEFAULT_OUT_DIR = Path(__file__).parent / "site" / "dist"
@@ -83,9 +83,11 @@ def _page(title, active_nav, body_html, base_path="."):
 
 
 def _bucket_class(bucket):
-    # Three-tier severity, not five arbitrary colors: urgent (Very High/High),
-    # notable (Moderate), quiet (Low/Negligible) — same visual language as the
-    # action badges, just one notch lighter.
+    # Three-tier severity conveyed by font weight, not color — colored small
+    # text reads as harsh even when it passes contrast math (see brand.py's
+    # note on badge fills vs. plain text). urgent (Very High/High) is
+    # boldest, notable (Moderate) is semi-bold, quiet (Low/Negligible) is
+    # normal weight in the muted secondary color.
     return {
         "Very High": "bucket-urgent", "High": "bucket-urgent", "Moderate": "bucket-notable",
         "Low": "bucket-quiet", "Negligible": "bucket-quiet",
@@ -290,25 +292,22 @@ _tier_css = "\n".join(
     for i, color in enumerate(_TIER_COLORS)
 )
 
-# --accent / --accent-warm are also used as plain TEXT (links, the "Moderate"
-# bucket label, the convergence pill) directly on the page background — a
-# different situation from the tier badges above (which are filled chips with
-# best_text_color's binary dark/white choice). Swapping a link's color to
-# plain black/white would erase which brand hue it is, so instead nudge the
-# color's own lightness just enough to clear AA contrast, preserving hue.
-# Light mode's --bg (bone) has lower luminance than --surface (white), so
-# targeting --bg covers both; dark mode's accents already pass and come back
-# unchanged.
-_accent_text_light = accessible_tint(_L["signal_blue"], _L["bg"])
-_accent_warm_text_light = accessible_tint(_L["lucky_copper"], _L["bg"])
-_accent_text_dark = accessible_tint(_D["accent_blue"], _D["bg"])
-_accent_warm_text_dark = accessible_tint(_D["accent_copper"], _D["bg"])
+# Colored TEXT (as opposed to a filled badge background) reads as harsh at
+# small sizes, even when it technically clears WCAG contrast — reported
+# directly against the copper/gray text on this site. So: color lives ONLY
+# in badge/pill fills and borders now (where best_text_color already picks
+# plain black/bone — exactly the two colors that read fine), never in body
+# text, links, or bucket labels. Severity there is now conveyed by font
+# weight instead of hue. The one thing that still needed a genuine fix is
+# light mode's --muted: the raw brand text_secondary (a fairly dark slate)
+# is heavier than a "quiet"/secondary label should read, even though its
+# contrast ratio passes easily — soften it toward the background.
+_muted_soft_light = mix_hex(_L["text_secondary"], _L["bg"], 0.3)
 
 STYLE_CSS = f"""
 :root {{
   --bg: #{_D['bg']}; --surface: #{_D['surface']}; --fg: #{_D['text_primary']}; --muted: #{_D['text_secondary']};
   --border: #{_D['text_secondary']}33; --accent: #{_D['accent_blue']}; --accent-warm: #{_D['accent_copper']};
-  --accent-text: #{_accent_text_dark}; --accent-warm-text: #{_accent_warm_text_dark};
   --positive: #{_D['positive']}; --negative: #{_D['negative']};
   --font-headline: '{FONT_HEADLINE}', -apple-system, 'Segoe UI', sans-serif;
   --font-body: '{FONT_BODY}', -apple-system, 'Segoe UI', sans-serif;
@@ -320,24 +319,21 @@ STYLE_CSS = f"""
    not the default, for both the OS-preference signal and the manual toggle. */
 @media (prefers-color-scheme: light) {{
   :root {{
-    --bg: #{_L['bg']}; --surface: #{_L['surface']}; --fg: #{_L['text_primary']}; --muted: #{_L['text_secondary']};
+    --bg: #{_L['bg']}; --surface: #{_L['surface']}; --fg: #{_L['text_primary']}; --muted: #{_muted_soft_light};
     --border: #{_L['text_primary']}22; --accent: #{_L['signal_blue']}; --accent-warm: #{_L['lucky_copper']};
-    --accent-text: #{_accent_text_light}; --accent-warm-text: #{_accent_warm_text_light};
     --positive: #{_L['ledger_green']}; --negative: #{_L['negative_red']};
     {_tier_vars_light};
   }}
 }}
 :root[data-theme="light"] {{
-  --bg: #{_L['bg']}; --surface: #{_L['surface']}; --fg: #{_L['text_primary']}; --muted: #{_L['text_secondary']};
+  --bg: #{_L['bg']}; --surface: #{_L['surface']}; --fg: #{_L['text_primary']}; --muted: #{_muted_soft_light};
   --border: #{_L['text_primary']}22; --accent: #{_L['signal_blue']}; --accent-warm: #{_L['lucky_copper']};
-  --accent-text: #{_accent_text_light}; --accent-warm-text: #{_accent_warm_text_light};
   --positive: #{_L['ledger_green']}; --negative: #{_L['negative_red']};
   {_tier_vars_light};
 }}
 :root[data-theme="dark"] {{
   --bg: #{_D['bg']}; --surface: #{_D['surface']}; --fg: #{_D['text_primary']}; --muted: #{_D['text_secondary']};
   --border: #{_D['text_secondary']}33; --accent: #{_D['accent_blue']}; --accent-warm: #{_D['accent_copper']};
-  --accent-text: #{_accent_text_dark}; --accent-warm-text: #{_accent_warm_text_dark};
   --positive: #{_D['positive']}; --negative: #{_D['negative']};
   {_tier_vars_dark};
 }}
@@ -345,13 +341,13 @@ STYLE_CSS = f"""
 body {{ margin: 0; background: var(--bg); color: var(--fg); font-family: var(--font-body); line-height: 1.55; }}
 main {{ max-width: 900px; margin: 0 auto; padding: 24px 20px 80px; }}
 h1, h2, h3 {{ font-family: var(--font-headline); text-wrap: balance; }}
-a {{ color: var(--accent-text); }}
+a {{ color: var(--fg); text-decoration: underline; text-underline-offset: 2px; }}
 a:focus-visible, button:focus-visible, summary:focus-visible {{ outline: 2px solid var(--accent); outline-offset: 2px; }}
 .site-header {{ display: flex; justify-content: space-between; align-items: center; padding: 14px 24px; border-bottom: 1px solid var(--border); flex-wrap: wrap; gap: 12px; }}
 .brand {{ font-family: var(--font-headline); font-weight: 700; }}
 .brand span {{ font-family: var(--font-body); font-weight: 400; color: var(--muted); }}
 .site-header nav a {{ margin-left: 16px; text-decoration: none; color: var(--fg); }}
-.site-header nav a.active {{ color: var(--accent-text); font-weight: 600; }}
+.site-header nav a.active {{ font-weight: 700; text-decoration: underline; text-underline-offset: 2px; }}
 .site-footer {{ text-align: center; color: var(--muted); font-size: 0.85em; padding: 20px; border-top: 1px solid var(--border); }}
 .muted {{ color: var(--muted); font-size: 0.9em; }}
 .empty {{ color: var(--muted); font-style: italic; }}
@@ -369,13 +365,13 @@ a:focus-visible, button:focus-visible, summary:focus-visible {{ outline: 2px sol
 .action-badge {{ font-size: 0.75em; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; padding: 3px 8px; border-radius: 4px; }}
 {_tier_css}
 .badge {{ font-size: 0.75em; padding: 3px 8px; border-radius: 4px; border: 1px solid var(--border); }}
-.badge-convergence {{ color: var(--accent-warm-text); border-color: var(--accent-warm); }}
-.badge-cco {{ color: var(--negative); border-color: var(--negative); }}
+.badge-convergence {{ color: var(--fg); font-weight: 700; border-color: var(--accent-warm); }}
+.badge-cco {{ color: var(--fg); font-weight: 700; border-color: var(--negative); }}
 .headline-score {{ margin-left: auto; font-weight: 600; }}
-.bucket-urgent {{ color: var(--negative); }}
-.bucket-notable {{ color: var(--accent-warm-text); }}
+.bucket-urgent {{ color: var(--fg); font-weight: 700; }}
+.bucket-notable {{ color: var(--fg); font-weight: 600; }}
 .bucket-quiet {{ color: var(--muted); }}
-details summary {{ cursor: pointer; color: var(--accent-text); margin-top: 6px; }}
+details summary {{ cursor: pointer; color: var(--fg); text-decoration: underline; text-underline-offset: 2px; margin-top: 6px; }}
 dl.evidence {{ margin: 10px 0; }}
 dl.evidence dt {{ font-weight: 600; text-transform: capitalize; margin-top: 6px; }}
 dl.evidence dd {{ margin: 0 0 0 12px; color: var(--muted); font-style: italic; }}
