@@ -1,0 +1,110 @@
+name: Monthly CI collection pass
+
+# Runs the EDGAR + iOS App Store collectors, the cluster/narrate/score
+# analysis pass, and regenerates the brief/deck/site — then commits the
+# updated event store and delivery surfaces back to the `data` branch, since
+# GitHub Actions runners are ephemeral and the SQLite store must persist
+# across runs. See ../../data branch's README.md for what lives there.
+#
+# Required repository secrets (Settings > Secrets and variables > Actions):
+#   SEC_USER_AGENT     e.g. "One Lucky Dog research@oneluckydog.com"
+#   ANTHROPIC_API_KEY  a valid Anthropic API key
+#
+# Required repository setting: Settings > Actions > General > Workflow
+# permissions must allow "Read and write permissions" for the default
+# GITHUB_TOKEN to push to the data branch.
+
+on:
+  schedule:
+    - cron: "0 13 1 * *"  # 13:00 UTC on the 1st of each month
+  workflow_dispatch:
+    inputs:
+      run_type:
+        description: "Run type"
+        required: false
+        default: "monthly"
+        type: choice
+        options: [monthly, baseline, convergence_check, adhoc]
+
+permissions:
+  contents: write
+
+jobs:
+  monthly-pass:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check required secrets are set
+        run: |
+          if [ -z "${{ secrets.SEC_USER_AGENT }}" ]; then
+            echo "::error::SEC_USER_AGENT repo secret is not set — see workflow file header."
+            exit 1
+          fi
+          if [ -z "${{ secrets.ANTHROPIC_API_KEY }}" ]; then
+            echo "::error::ANTHROPIC_API_KEY repo secret is not set — see workflow file header."
+            exit 1
+          fi
+
+      - name: Checkout source (main)
+        uses: actions/checkout@v4
+        with:
+          path: source
+
+      - name: Checkout persistent data (data branch)
+        uses: actions/checkout@v4
+        with:
+          ref: data
+          path: data
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        working-directory: source
+        run: pip install -r requirements.txt
+
+      - name: Stage persistent db into the pipeline's working directory
+        run: |
+          mkdir -p source/db
+          if [ -f data/db/old_ci.sqlite3 ]; then
+            cp data/db/old_ci.sqlite3 source/db/old_ci.sqlite3
+          fi
+
+      - name: Initialize store (idempotent — creates/seeds only what's missing)
+        working-directory: source
+        env:
+          SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
+        run: python -m db.init_db
+
+      - name: Run collection + analysis pass
+        working-directory: source
+        env:
+          SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: python run.py --type "${{ github.event.inputs.run_type || 'monthly' }}"
+
+      - name: Regenerate brief, deck, and site
+        working-directory: source
+        run: |
+          python -m surfaces.brief --out ../data/brief/brief.md
+          python -m surfaces.deck --out ../data/deck/deck.pptx
+          python -m surfaces.site --out ../data/site/dist
+
+      - name: Copy updated db back to the data checkout
+        run: |
+          mkdir -p data/db
+          cp source/db/old_ci.sqlite3 data/db/old_ci.sqlite3
+
+      - name: Commit and push updated data
+        working-directory: data
+        run: |
+          git config user.name "old-ci-bot"
+          git config user.email "old-ci-bot@users.noreply.github.com"
+          git add db/old_ci.sqlite3 brief deck site
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "Monthly CI run: $(date -u +%Y-%m-%d)"
+            git push origin data
+          fi
