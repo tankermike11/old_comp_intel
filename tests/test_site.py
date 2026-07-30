@@ -157,3 +157,22 @@ def test_light_mode_muted_text_uses_deliberately_lighter_gray(conn, tmp_path):
     assert softened_muted == "#88909B"
     assert softened_muted != f"#{raw_muted}"
     assert _relative_luminance(softened_muted.lstrip("#")) > _relative_luminance(raw_muted)
+
+
+def test_tier_fill_color_scoped_to_badge_not_whole_card(conn, tmp_path):
+    # Regression test for the reported bug: the event-card article and its
+    # action-badge span both carry the same `action-tier-N` class (the card
+    # for its border-left accent, the badge for its fill). A bare
+    # `.action-tier-N { background; color }` selector has equal specificity
+    # to `.event-card { background: var(--surface) }` and, appearing later
+    # in the stylesheet, was winning — painting the WHOLE card with the tier
+    # fill and flipping its inherited text color to black/white. That made
+    # --muted/--fg text elsewhere in the card (which doesn't vary per tier)
+    # read identically across differently-colored cards instead of adapting.
+    # The tier background/color rule must be scoped to `.action-badge` only.
+    write_site(conn, out_dir=tmp_path / "dist")
+    css = (tmp_path / "dist" / "assets" / "style.css").read_text(encoding="utf-8")
+
+    for i in range(4):
+        assert f".action-badge.action-tier-{i} {{ background: var(--tier-{i}); color: var(--tier-{i}-text); }}" in css
+        assert re.search(rf"(?<!action-badge)\.action-tier-{i} \{{ background", css) is None

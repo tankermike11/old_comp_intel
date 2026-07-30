@@ -286,7 +286,18 @@ def _tier_vars_css(colors):
 _tier_vars_light = _tier_vars_css(_TIER_COLORS)
 _tier_vars_dark = _tier_vars_css([_TIER_DARK_EQUIVALENT[c] for c in _TIER_COLORS])
 _tier_css = "\n".join(
-    f'.{_ACTION_TIER_CLASS_BY_COLOR[color]} {{ background: var(--tier-{i}); color: var(--tier-{i}-text); }} '
+    # Scoped to `.action-badge.action-tier-N`, NOT the bare tier class: the
+    # event-card article carries the same action-tier-N class (for the
+    # border-left accent below), and a bare `.action-tier-N { background;
+    # color }` rule has equal specificity to `.event-card { background:
+    # var(--surface) }` — appearing later in the stylesheet, it was winning
+    # and painting the WHOLE card (not just the badge pill) with the tier
+    # fill color, flipping the card's inherited text color to black/white.
+    # That's why the badge text looked right (computed per-background) while
+    # --muted/--fg text elsewhere (event-meta, so-what, links) — which don't
+    # change per tier — read identically across differently-colored cards
+    # instead of adapting, and lost contrast against the accidental fill.
+    f'.action-badge.{_ACTION_TIER_CLASS_BY_COLOR[color]} {{ background: var(--tier-{i}); color: var(--tier-{i}-text); }} '
     f'.event-card.{_ACTION_TIER_CLASS_BY_COLOR[color]} {{ border-left-color: var(--tier-{i}); }}'
     for i, color in enumerate(_TIER_COLORS)
 )
