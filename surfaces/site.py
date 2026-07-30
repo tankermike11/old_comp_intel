@@ -299,16 +299,17 @@ _tier_css = "\n".join(
 # text, links, or bucket labels. Severity there is now conveyed by font
 # weight instead of hue.
 #
-# Light mode's --muted went through two computed attempts (blend 30% toward
-# bg, then 15%) chasing "softer but still >=4.5:1 AA" — both were rejected
-# on sight (the event-meta line, the evidence/sources area) as still not
-# working. Per explicit direction, this is now a directly-chosen light gray
-# — the same "muted foreground" tone many UI systems use (close to Tailwind
-# gray-400) — rather than another derived-from-contrast-math guess. It sits
-# BELOW the WCAG AA floor for small text (~2.3:1 against --bg): a deliberate
-# call for this secondary/de-emphasized meta text, made after two
-# AA-compliant options were tried and rejected — not an oversight.
-_muted_soft_light = "9CA3AF"
+# Light mode's --muted went through several rounds chasing "softer but
+# still >=4.5:1 AA" via blend math (30%, then 15%) — both rejected on sight.
+# A directly-chosen #9CA3AF was then also too light. Settled by publishing
+# an actual side-by-side swatch comparison (solid color blocks + the real
+# event-meta text, five candidates spanning the original raw gray to the
+# too-light one) and letting the user pick directly rather than continuing
+# to guess — #88909B ("D") is what was chosen. It sits below the WCAG AA
+# floor for small text (~2.9:1 against --bg): a deliberate call for this
+# secondary/de-emphasized meta text, made after direct visual comparison,
+# not an oversight.
+_muted_soft_light = "88909B"
 
 STYLE_CSS = f"""
 :root {{

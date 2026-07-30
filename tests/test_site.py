@@ -137,13 +137,15 @@ def test_no_colored_hues_used_as_plain_text_color(conn, tmp_path):
 def test_light_mode_muted_text_uses_deliberately_lighter_gray(conn, tmp_path):
     # The raw brand gray (#4A5560, ~6.9:1 contrast) was reported as too heavy
     # for small secondary text. Two computed "soften toward bg but keep AA"
-    # attempts (blend 0.3 -> ~3.4:1, blend 0.15 -> ~4.75:1) were BOTH rejected
-    # on sight against the event-meta line and evidence/sources area — so
-    # this is now a directly-chosen lighter gray (#9CA3AF, a common
-    # "muted-foreground" tone), not another contrast-math derivation. It sits
-    # below the AA floor (~2.3:1) by deliberate choice after two compliant
-    # options were tried and rejected, so this test only pins the exact
-    # chosen value rather than asserting a contrast minimum.
+    # attempts (blend 0.3 -> ~3.4:1, blend 0.15 -> ~4.75:1) were rejected on
+    # sight, and a third directly-chosen guess (#9CA3AF) turned out too
+    # light. Resolved by publishing an actual side-by-side swatch comparison
+    # (solid color blocks + the real event-meta text) and letting the user
+    # pick directly — #88909B ("D") is the chosen value, not another
+    # contrast-math derivation. It sits below the AA floor (~2.9:1) by
+    # deliberate choice made from direct visual comparison, so this test
+    # only pins the exact chosen value rather than asserting a contrast
+    # minimum.
     from surfaces.brand import COLORS, _relative_luminance
 
     write_site(conn, out_dir=tmp_path / "dist")
@@ -152,6 +154,6 @@ def test_light_mode_muted_text_uses_deliberately_lighter_gray(conn, tmp_path):
 
     raw_muted = COLORS["text_secondary"]
     softened_muted = light_media["--muted"]
-    assert softened_muted == "#9CA3AF"
+    assert softened_muted == "#88909B"
     assert softened_muted != f"#{raw_muted}"
     assert _relative_luminance(softened_muted.lstrip("#")) > _relative_luminance(raw_muted)
