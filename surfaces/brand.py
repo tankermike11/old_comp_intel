@@ -1,12 +1,19 @@
 """One Lucky Dog brand constants, transcribed from `OLD - Branding Guidelines.pdf`
-(v1.0, root of repo). Kept in one place so the brief and deck generators share
-exact hex values and type choices instead of hardcoding them inline.
+(v1.0, root of repo). Kept in one place so the brief, deck, and site generators
+share exact hex values and type choices instead of hardcoding them inline.
 
-Deck guidance (guidelines, p.5): light mode is the default for PowerPoint decks
-— strong Sora headers, clear structure via dividers/whitespace, data presented
-simply and confidently, consistent branding. python-pptx can only *request*
-Sora/Inter/IBM Plex Mono — if a viewer's machine doesn't have them installed,
-PowerPoint substitutes a fallback font, same as any other generated deck.
+Guidelines p.4 gives an explicit mode-per-surface rule: "Use light mode for
+decks, proposals, and educational content. Use dark mode for product, charts,
+and dense trading workflows." So:
+  - deck.py / brief.py -> light mode always (they ARE the deck/proposal case).
+  - site.py -> the internal site is exactly "product... dense workflows", so
+    it defaults to DARK_COLORS, while still respecting the viewer's OS/toggle
+    preference the normal way (light/dark are both real, designed palettes
+    below, not an afterthought inversion of one another).
+
+python-pptx (deck.py) can only *request* Sora/Inter/IBM Plex Mono — if a
+viewer's machine doesn't have them installed, PowerPoint substitutes a
+fallback font, same as any other generated deck.
 """
 
 COLORS = {
@@ -22,6 +29,19 @@ COLORS = {
     "surface": "FFFFFF",
     "text_primary": "0D1B1E",
     "text_secondary": "4A5560",
+}
+
+# Dark-mode UI (guidelines p.4's "Dark Mode UI" swatch set) — the site's default,
+# per the mode-per-surface rule above. Distinct hex values, not an inversion.
+DARK_COLORS = {
+    "bg": "101114",
+    "surface": "161A1E",
+    "text_primary": "F5F3EE",
+    "text_secondary": "BFC7CC",
+    "accent_copper": "C9782E",
+    "accent_blue": "63A4D1",
+    "positive": "49A579",
+    "negative": "D9685D",
 }
 
 FONT_HEADLINE = "Sora"       # headlines and key statements

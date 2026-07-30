@@ -27,32 +27,14 @@ from db.queries import (
     list_unscored_events,
     sightings_for_event,
 )
+from surfaces.brand import ACTION_LABELS, ACTION_TIER_COLOR, COLORS, DARK_COLORS, FONT_BODY, FONT_HEADLINE, FONT_MONO
 
 DEFAULT_OUT_DIR = Path(__file__).parent / "site" / "dist"
 
-ACTION_LABELS = {
-    "PRIORITIZE": "Prioritize",
-    "ACT_SOON": "Act Soon",
-    "COUNTER_POSITION": "Counter-Position",
-    "MONITOR": "Monitor",
-    "TRACK": "Track",
-    "WEDGE_WATCH": "Wedge Watch",
-    "NOTE": "Note",
-    "LOG": "Log",
-    "LOG_ONLY": "Log Only",
-}
-
-ACTION_CSS_CLASS = {
-    "PRIORITIZE": "action-priority",
-    "ACT_SOON": "action-soon",
-    "COUNTER_POSITION": "action-counter",
-    "WEDGE_WATCH": "action-wedge",
-    "MONITOR": "action-monitor",
-    "TRACK": "action-track",
-    "NOTE": "action-quiet",
-    "LOG": "action-quiet",
-    "LOG_ONLY": "action-quiet",
-}
+# One CSS class per distinct brand color used for action severity (4 tiers,
+# not 9 — several actions share a tier's color; see brand.ACTION_TIER_COLOR).
+_ACTION_TIER_CLASS_BY_COLOR = {c: f"action-tier-{i}" for i, c in enumerate(dict.fromkeys(ACTION_TIER_COLOR.values()))}
+ACTION_CSS_CLASS = {action: _ACTION_TIER_CLASS_BY_COLOR[color] for action, color in ACTION_TIER_COLOR.items()}
 
 
 def e(value):
@@ -91,9 +73,12 @@ def _page(title, active_nav, body_html, base_path="."):
 
 
 def _bucket_class(bucket):
+    # Three-tier severity, not five arbitrary colors: urgent (Very High/High),
+    # notable (Moderate), quiet (Low/Negligible) — same visual language as the
+    # action badges, just one notch lighter.
     return {
-        "Very High": "bucket-veryhigh", "High": "bucket-high", "Moderate": "bucket-moderate",
-        "Low": "bucket-low", "Negligible": "bucket-negligible",
+        "Very High": "bucket-urgent", "High": "bucket-urgent", "Moderate": "bucket-notable",
+        "Low": "bucket-quiet", "Negligible": "bucket-quiet",
     }.get(bucket, "")
 
 
@@ -128,7 +113,7 @@ def _event_card(ev, sightings, base_path="."):
   <div class="event-card-header">
     <span class="action-badge {action_class}">{e(action_label)}</span>
     {convergence_badge}{cco_badge}
-    <span class="headline-score">Headline {e(ev["headline_score"])}</span>
+    <span class="headline-score">Headline <span class="score-num">{e(ev["headline_score"])}</span></span>
   </div>
   <h3>{e(ev["title"])}</h3>
   <div class="event-meta">
@@ -139,8 +124,8 @@ def _event_card(ev, sightings, base_path="."):
     &middot; wedge: {e(ev["wedge_direction"])}
   </div>
   <div class="axis-scores">
-    <span class="{_bucket_class(ev["industry_bucket"])}">Industry Impact: {e(ev["industry_score"])} ({e(ev["industry_bucket"])})</span>
-    <span class="{_bucket_class(ev["relevance_bucket"])}">Relevance to OLD: {e(ev["relevance_score"])} ({e(ev["relevance_bucket"])})</span>
+    <span class="{_bucket_class(ev["industry_bucket"])}">Industry Impact: <span class="score-num">{e(ev["industry_score"])}</span> ({e(ev["industry_bucket"])})</span>
+    <span class="{_bucket_class(ev["relevance_bucket"])}">Relevance to OLD: <span class="score-num">{e(ev["relevance_score"])}</span> ({e(ev["relevance_bucket"])})</span>
   </div>
   <p class="so-what">{e(ev["so_what"])}</p>
   <details>
@@ -153,7 +138,7 @@ def _event_card(ev, sightings, base_path="."):
 
 
 def _stat(label, value):
-    return f'<div class="stat"><div class="stat-value">{e(value)}</div><div class="stat-label">{e(label)}</div></div>'
+    return f'<div class="stat"><div class="stat-value score-num">{e(value)}</div><div class="stat-label">{e(label)}</div></div>'
 
 
 # --- page builders ---------------------------------------------------------------------
@@ -257,58 +242,113 @@ def build_competitor_profile_page(conn, competitor):
     return _page(competitor["name"], "competitors.html", body, base_path="..")
 
 
-STYLE_CSS = """
-:root {
-  --bg: #ffffff; --fg: #1a1a1a; --muted: #6b7280; --card-bg: #f8fafc; --border: #e2e8f0;
-  --accent: #2563eb;
+# Built from surfaces/brand.py's transcribed guideline colors, not invented
+# hex values — see brand.py's module docstring for the mode-per-surface rule
+# ("product / dense workflows" -> dark default) this site follows.
+_D = DARK_COLORS
+_L = COLORS
+_TIER_COLORS = list(dict.fromkeys(ACTION_TIER_COLOR.values()))  # [negative_red, lucky_copper, signal_blue, text_secondary]
+# Each light-mode tier color's dark-mode equivalent, so badges swap with the
+# theme instead of staying pinned to light-mode hex values in both themes.
+_TIER_DARK_EQUIVALENT = {
+    _L["negative_red"]: _D["negative"],
+    _L["lucky_copper"]: _D["accent_copper"],
+    _L["signal_blue"]: _D["accent_blue"],
+    _L["text_secondary"]: _D["text_secondary"],
 }
-@media (prefers-color-scheme: dark) {
-  :root { --bg: #0f1115; --fg: #e5e7eb; --muted: #9ca3af; --card-bg: #171a21; --border: #2a2f3a; --accent: #60a5fa; }
-}
-* { box-sizing: border-box; }
-body { margin: 0; background: var(--bg); color: var(--fg); font-family: -apple-system, Segoe UI, Roboto, sans-serif; line-height: 1.5; }
-main { max-width: 900px; margin: 0 auto; padding: 24px 20px 80px; }
-a { color: var(--accent); }
-.site-header { display: flex; justify-content: space-between; align-items: center; padding: 14px 24px; border-bottom: 1px solid var(--border); flex-wrap: wrap; gap: 12px; }
-.brand { font-weight: 700; }
-.brand span { font-weight: 400; color: var(--muted); }
-.site-header nav a { margin-left: 16px; text-decoration: none; color: var(--fg); }
-.site-header nav a.active { color: var(--accent); font-weight: 600; }
-.site-footer { text-align: center; color: var(--muted); font-size: 0.85em; padding: 20px; border-top: 1px solid var(--border); }
-.muted { color: var(--muted); font-size: 0.9em; }
-.empty { color: var(--muted); font-style: italic; }
-.stats { display: flex; gap: 16px; flex-wrap: wrap; margin: 16px 0 28px; }
-.stat { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px 18px; min-width: 120px; }
-.stat-value { font-size: 1.6em; font-weight: 700; }
-.stat-label { color: var(--muted); font-size: 0.85em; }
-.event-card { background: var(--card-bg); border: 1px solid var(--border); border-left-width: 4px; border-radius: 8px; padding: 16px 20px; margin-bottom: 16px; }
-.event-card h3 { margin: 6px 0; }
-.event-card-header { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.event-meta { color: var(--muted); font-size: 0.9em; margin-bottom: 8px; }
-.axis-scores { display: flex; gap: 18px; flex-wrap: wrap; font-size: 0.9em; margin-bottom: 8px; }
-.so-what { margin: 8px 0; }
-.action-badge { font-size: 0.75em; font-weight: 700; text-transform: uppercase; padding: 3px 8px; border-radius: 4px; color: #fff; }
-.action-priority { background: #dc2626; } .event-card.action-priority { border-left-color: #dc2626; }
-.action-soon { background: #ea580c; } .event-card.action-soon { border-left-color: #ea580c; }
-.action-counter { background: #7c3aed; } .event-card.action-counter { border-left-color: #7c3aed; }
-.action-wedge { background: #db2777; } .event-card.action-wedge { border-left-color: #db2777; }
-.action-monitor { background: #2563eb; } .event-card.action-monitor { border-left-color: #2563eb; }
-.action-track { background: #0891b2; } .event-card.action-track { border-left-color: #0891b2; }
-.action-quiet { background: #6b7280; } .event-card.action-quiet { border-left-color: #6b7280; }
-.badge { font-size: 0.75em; padding: 3px 8px; border-radius: 4px; border: 1px solid var(--border); }
-.badge-convergence { color: #db2777; border-color: #db2777; }
-.badge-cco { color: #dc2626; border-color: #dc2626; }
-.headline-score { margin-left: auto; font-weight: 600; }
-.bucket-veryhigh { color: #dc2626; } .bucket-high { color: #ea580c; } .bucket-moderate { color: #ca8a04; }
-.bucket-low { color: var(--muted); } .bucket-negligible { color: var(--muted); }
-details summary { cursor: pointer; color: var(--accent); margin-top: 6px; }
-dl.evidence { margin: 10px 0; }
-dl.evidence dt { font-weight: 600; text-transform: capitalize; margin-top: 6px; }
-dl.evidence dd { margin: 0 0 0 12px; color: var(--muted); font-style: italic; }
-ul.sources { margin: 10px 0 0; padding-left: 20px; }
-.competitor-table { width: 100%; border-collapse: collapse; margin-top: 16px; }
-.competitor-table th, .competitor-table td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); }
-.pending { margin-top: 32px; padding-top: 16px; border-top: 1px dashed var(--border); }
+_tier_var_names = [f"--tier-{i}" for i in range(len(_TIER_COLORS))]
+_tier_vars_light = "; ".join(f"{name}: #{color}" for name, color in zip(_tier_var_names, _TIER_COLORS))
+_tier_vars_dark = "; ".join(
+    f"{name}: #{_TIER_DARK_EQUIVALENT[color]}" for name, color in zip(_tier_var_names, _TIER_COLORS)
+)
+_tier_css = "\n".join(
+    f'.{_ACTION_TIER_CLASS_BY_COLOR[color]} {{ background: var(--tier-{i}); }} '
+    f'.event-card.{_ACTION_TIER_CLASS_BY_COLOR[color]} {{ border-left-color: var(--tier-{i}); }}'
+    for i, color in enumerate(_TIER_COLORS)
+)
+
+STYLE_CSS = f"""
+:root {{
+  --bg: #{_D['bg']}; --surface: #{_D['surface']}; --fg: #{_D['text_primary']}; --muted: #{_D['text_secondary']};
+  --border: #{_D['text_secondary']}33; --accent: #{_D['accent_blue']}; --accent-warm: #{_D['accent_copper']};
+  --positive: #{_D['positive']}; --negative: #{_D['negative']};
+  --font-headline: '{FONT_HEADLINE}', -apple-system, 'Segoe UI', sans-serif;
+  --font-body: '{FONT_BODY}', -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: '{FONT_MONO}', 'SFMono-Regular', Consolas, monospace;
+  {_tier_vars_dark};
+  /* Dark mode's tier colors (salmon/copper/light-blue/light-gray) are all
+     bright enough for dark text; light mode's (deeper red/copper/blue/slate)
+     are not — badge text has to flip with the theme, not stay fixed. */
+  --badge-text: #{_D['bg']};
+}}
+/* Guidelines: light mode for decks/proposals, dark for product/dense workflows.
+   This IS the product surface, so dark is the base — light is the override,
+   not the default, for both the OS-preference signal and the manual toggle. */
+@media (prefers-color-scheme: light) {{
+  :root {{
+    --bg: #{_L['bg']}; --surface: #{_L['surface']}; --fg: #{_L['text_primary']}; --muted: #{_L['text_secondary']};
+    --border: #{_L['text_primary']}22; --accent: #{_L['signal_blue']}; --accent-warm: #{_L['lucky_copper']};
+    --positive: #{_L['ledger_green']}; --negative: #{_L['negative_red']};
+    {_tier_vars_light};
+    --badge-text: #{_L['bg']};
+  }}
+}}
+:root[data-theme="light"] {{
+  --bg: #{_L['bg']}; --surface: #{_L['surface']}; --fg: #{_L['text_primary']}; --muted: #{_L['text_secondary']};
+  --border: #{_L['text_primary']}22; --accent: #{_L['signal_blue']}; --accent-warm: #{_L['lucky_copper']};
+  --positive: #{_L['ledger_green']}; --negative: #{_L['negative_red']};
+  {_tier_vars_light};
+  --badge-text: #{_L['bg']};
+}}
+:root[data-theme="dark"] {{
+  --badge-text: #{_D['bg']};
+  --bg: #{_D['bg']}; --surface: #{_D['surface']}; --fg: #{_D['text_primary']}; --muted: #{_D['text_secondary']};
+  --border: #{_D['text_secondary']}33; --accent: #{_D['accent_blue']}; --accent-warm: #{_D['accent_copper']};
+  --positive: #{_D['positive']}; --negative: #{_D['negative']};
+  {_tier_vars_dark};
+}}
+* {{ box-sizing: border-box; }}
+body {{ margin: 0; background: var(--bg); color: var(--fg); font-family: var(--font-body); line-height: 1.55; }}
+main {{ max-width: 900px; margin: 0 auto; padding: 24px 20px 80px; }}
+h1, h2, h3 {{ font-family: var(--font-headline); text-wrap: balance; }}
+a {{ color: var(--accent); }}
+a:focus-visible, button:focus-visible, summary:focus-visible {{ outline: 2px solid var(--accent); outline-offset: 2px; }}
+.site-header {{ display: flex; justify-content: space-between; align-items: center; padding: 14px 24px; border-bottom: 1px solid var(--border); flex-wrap: wrap; gap: 12px; }}
+.brand {{ font-family: var(--font-headline); font-weight: 700; }}
+.brand span {{ font-family: var(--font-body); font-weight: 400; color: var(--muted); }}
+.site-header nav a {{ margin-left: 16px; text-decoration: none; color: var(--fg); }}
+.site-header nav a.active {{ color: var(--accent); font-weight: 600; }}
+.site-footer {{ text-align: center; color: var(--muted); font-size: 0.85em; padding: 20px; border-top: 1px solid var(--border); }}
+.muted {{ color: var(--muted); font-size: 0.9em; }}
+.empty {{ color: var(--muted); font-style: italic; }}
+.score-num {{ font-family: var(--font-mono); font-variant-numeric: tabular-nums; }}
+.stats {{ display: flex; gap: 16px; flex-wrap: wrap; margin: 16px 0 28px; }}
+.stat {{ background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 18px; min-width: 120px; }}
+.stat-value {{ font-size: 1.6em; font-weight: 700; }}
+.stat-label {{ color: var(--muted); font-size: 0.85em; }}
+.event-card {{ background: var(--surface); border: 1px solid var(--border); border-left-width: 4px; border-radius: 8px; padding: 16px 20px; margin-bottom: 16px; }}
+.event-card h3 {{ margin: 6px 0; }}
+.event-card-header {{ display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }}
+.event-meta {{ color: var(--muted); font-size: 0.9em; margin-bottom: 8px; }}
+.axis-scores {{ display: flex; gap: 18px; flex-wrap: wrap; font-size: 0.9em; margin-bottom: 8px; }}
+.so-what {{ margin: 8px 0; }}
+.action-badge {{ font-size: 0.75em; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; padding: 3px 8px; border-radius: 4px; color: var(--badge-text); }}
+{_tier_css}
+.badge {{ font-size: 0.75em; padding: 3px 8px; border-radius: 4px; border: 1px solid var(--border); }}
+.badge-convergence {{ color: var(--accent-warm); border-color: var(--accent-warm); }}
+.badge-cco {{ color: var(--negative); border-color: var(--negative); }}
+.headline-score {{ margin-left: auto; font-weight: 600; }}
+.bucket-urgent {{ color: var(--negative); }}
+.bucket-notable {{ color: var(--accent-warm); }}
+.bucket-quiet {{ color: var(--muted); }}
+details summary {{ cursor: pointer; color: var(--accent); margin-top: 6px; }}
+dl.evidence {{ margin: 10px 0; }}
+dl.evidence dt {{ font-weight: 600; text-transform: capitalize; margin-top: 6px; }}
+dl.evidence dd {{ margin: 0 0 0 12px; color: var(--muted); font-style: italic; }}
+ul.sources {{ margin: 10px 0 0; padding-left: 20px; }}
+.competitor-table {{ width: 100%; border-collapse: collapse; margin-top: 16px; }}
+.competitor-table th, .competitor-table td {{ text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); }}
+.pending {{ margin-top: 32px; padding-top: 16px; border-top: 1px dashed var(--border); }}
 """
 
 
