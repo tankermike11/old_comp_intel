@@ -91,3 +91,28 @@ ACTION_ORDER = [
 def hex_to_rgb(hex_color):
     hex_color = hex_color.lstrip("#")
     return tuple(int(hex_color[i:i + 2], 16) for i in (0, 2, 4))
+
+
+def _relative_luminance(hex_color):
+    """WCAG relative luminance, used to pick legible text over an arbitrary
+    brand-color background instead of assuming one text color per theme —
+    some brand accents (lucky_copper especially) are bright enough that dark
+    text reads far better than light text even in an otherwise-dark theme.
+    """
+    def channel(c):
+        c = c / 255
+        return c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4
+
+    r, g, b = hex_to_rgb(hex_color)
+    return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b)
+
+
+def contrast_ratio(hex_a, hex_b):
+    la, lb = _relative_luminance(hex_a), _relative_luminance(hex_b)
+    lighter, darker = max(la, lb), min(la, lb)
+    return (lighter + 0.05) / (darker + 0.05)
+
+
+def best_text_color(bg_hex, light_hex="F5F3EE", dark_hex="0D1B1E"):
+    """Whichever of a light/dark text color contrasts better against bg_hex."""
+    return light_hex if contrast_ratio(bg_hex, light_hex) >= contrast_ratio(bg_hex, dark_hex) else dark_hex

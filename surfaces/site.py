@@ -27,7 +27,16 @@ from db.queries import (
     list_unscored_events,
     sightings_for_event,
 )
-from surfaces.brand import ACTION_LABELS, ACTION_TIER_COLOR, COLORS, DARK_COLORS, FONT_BODY, FONT_HEADLINE, FONT_MONO
+from surfaces.brand import (
+    ACTION_LABELS,
+    ACTION_TIER_COLOR,
+    COLORS,
+    DARK_COLORS,
+    FONT_BODY,
+    FONT_HEADLINE,
+    FONT_MONO,
+    best_text_color,
+)
 
 DEFAULT_OUT_DIR = Path(__file__).parent / "site" / "dist"
 
@@ -257,12 +266,25 @@ _TIER_DARK_EQUIVALENT = {
     _L["text_secondary"]: _D["text_secondary"],
 }
 _tier_var_names = [f"--tier-{i}" for i in range(len(_TIER_COLORS))]
-_tier_vars_light = "; ".join(f"{name}: #{color}" for name, color in zip(_tier_var_names, _TIER_COLORS))
-_tier_vars_dark = "; ".join(
-    f"{name}: #{_TIER_DARK_EQUIVALENT[color]}" for name, color in zip(_tier_var_names, _TIER_COLORS)
-)
+
+
+def _tier_vars_css(colors):
+    """colors: the tier backgrounds for one theme. Emits both the background
+    variable and a COMPUTED (not assumed) text-color variable per tier — some
+    brand accents (lucky_copper especially) contrast better with dark text
+    even inside an otherwise-dark theme, so text can't just follow the theme.
+    """
+    parts = []
+    for name, color in zip(_tier_var_names, colors):
+        parts.append(f"{name}: #{color}")
+        parts.append(f"{name}-text: #{best_text_color(color)}")
+    return "; ".join(parts)
+
+
+_tier_vars_light = _tier_vars_css(_TIER_COLORS)
+_tier_vars_dark = _tier_vars_css([_TIER_DARK_EQUIVALENT[c] for c in _TIER_COLORS])
 _tier_css = "\n".join(
-    f'.{_ACTION_TIER_CLASS_BY_COLOR[color]} {{ background: var(--tier-{i}); }} '
+    f'.{_ACTION_TIER_CLASS_BY_COLOR[color]} {{ background: var(--tier-{i}); color: var(--tier-{i}-text); }} '
     f'.event-card.{_ACTION_TIER_CLASS_BY_COLOR[color]} {{ border-left-color: var(--tier-{i}); }}'
     for i, color in enumerate(_TIER_COLORS)
 )
@@ -276,10 +298,6 @@ STYLE_CSS = f"""
   --font-body: '{FONT_BODY}', -apple-system, 'Segoe UI', sans-serif;
   --font-mono: '{FONT_MONO}', 'SFMono-Regular', Consolas, monospace;
   {_tier_vars_dark};
-  /* Dark mode's tier colors (salmon/copper/light-blue/light-gray) are all
-     bright enough for dark text; light mode's (deeper red/copper/blue/slate)
-     are not — badge text has to flip with the theme, not stay fixed. */
-  --badge-text: #{_D['bg']};
 }}
 /* Guidelines: light mode for decks/proposals, dark for product/dense workflows.
    This IS the product surface, so dark is the base — light is the override,
@@ -290,7 +308,6 @@ STYLE_CSS = f"""
     --border: #{_L['text_primary']}22; --accent: #{_L['signal_blue']}; --accent-warm: #{_L['lucky_copper']};
     --positive: #{_L['ledger_green']}; --negative: #{_L['negative_red']};
     {_tier_vars_light};
-    --badge-text: #{_L['bg']};
   }}
 }}
 :root[data-theme="light"] {{
@@ -298,10 +315,8 @@ STYLE_CSS = f"""
   --border: #{_L['text_primary']}22; --accent: #{_L['signal_blue']}; --accent-warm: #{_L['lucky_copper']};
   --positive: #{_L['ledger_green']}; --negative: #{_L['negative_red']};
   {_tier_vars_light};
-  --badge-text: #{_L['bg']};
 }}
 :root[data-theme="dark"] {{
-  --badge-text: #{_D['bg']};
   --bg: #{_D['bg']}; --surface: #{_D['surface']}; --fg: #{_D['text_primary']}; --muted: #{_D['text_secondary']};
   --border: #{_D['text_secondary']}33; --accent: #{_D['accent_blue']}; --accent-warm: #{_D['accent_copper']};
   --positive: #{_D['positive']}; --negative: #{_D['negative']};
@@ -332,7 +347,7 @@ a:focus-visible, button:focus-visible, summary:focus-visible {{ outline: 2px sol
 .event-meta {{ color: var(--muted); font-size: 0.9em; margin-bottom: 8px; }}
 .axis-scores {{ display: flex; gap: 18px; flex-wrap: wrap; font-size: 0.9em; margin-bottom: 8px; }}
 .so-what {{ margin: 8px 0; }}
-.action-badge {{ font-size: 0.75em; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; padding: 3px 8px; border-radius: 4px; color: var(--badge-text); }}
+.action-badge {{ font-size: 0.75em; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; padding: 3px 8px; border-radius: 4px; }}
 {_tier_css}
 .badge {{ font-size: 0.75em; padding: 3px 8px; border-radius: 4px; border: 1px solid var(--border); }}
 .badge-convergence {{ color: var(--accent-warm); border-color: var(--accent-warm); }}
