@@ -136,3 +136,31 @@ def test_build_deck_with_no_runs_returns_title_slide_only(tmp_path):
     prs = build_deck(empty_conn)
     assert len(prs.slides) == 1
     empty_conn.close()
+
+
+def test_copper_tier_badge_uses_dark_text_not_hardcoded_light():
+    # Regression test for the exact bug the site's badges had: lucky_copper is
+    # bright enough that dark text reads far better than the previously
+    # hardcoded light "bone" text. ACT_SOON/COUNTER_POSITION/WEDGE_WATCH all
+    # share the copper tier (see brand.ACTION_TIER_COLOR).
+    from pptx import Presentation as PresentationCls
+
+    from surfaces.deck import SLIDE_HEIGHT, SLIDE_WIDTH, _build_event_slide
+
+    prs = PresentationCls()
+    prs.slide_width = SLIDE_WIDTH
+    prs.slide_height = SLIDE_HEIGHT
+    ev = {
+        "title": "Copper-tier event", "competitor_name": "Webull", "category": "feature_launch",
+        "event_date": "2026-07-01", "action": "ACT_SOON", "convergence_flag": False,
+        "requires_cco_review": False, "industry_score": 60, "industry_bucket": "High",
+        "relevance_score": 60, "relevance_bucket": "High", "so_what": "Text.",
+    }
+    slide = _build_event_slide(prs, ev, [])
+    badge_runs = [
+        run for shape in slide.shapes if shape.has_text_frame
+        for p in shape.text_frame.paragraphs for run in p.runs
+        if run.text == "ACT SOON"
+    ]
+    assert len(badge_runs) == 1
+    assert str(badge_runs[0].font.color.rgb) == "0D1B1E"

@@ -36,6 +36,7 @@ from surfaces.brand import (
     PUBLIC_BRAND,
     SHORTHAND,
     TAGLINE_PRIMARY,
+    best_text_color,
     hex_to_rgb,
 )
 
@@ -153,11 +154,19 @@ def _build_event_slide(prs, ev, sightings):
     run.font.size = Pt(12)
     run.font.bold = True
     run.font.name = FONT_BODY
-    run.font.color.rgb = _rgb(COLORS["bone"])
+    # Same bug the site's badges had: lucky_copper is bright enough that dark
+    # text reads far better on it than the previously-hardcoded bone (light)
+    # text — compute per-badge instead of assuming one text color fits every
+    # tier color.
+    run.font.color.rgb = _rgb(best_text_color(color))
 
     kicker = "CONVERGENCE SIGNAL" if ev["convergence_flag"] else "COMPETITIVE SIGNAL"
+    # lucky_copper as small (non-"large text") bold text only hits ~3.4:1
+    # contrast against the deck's bone background — fails WCAG AA at 13pt.
+    # Bumping to 14pt bold crosses into the "large text" 3:1 threshold, which
+    # it does clear, without giving up the copper accent color entirely.
     _add_text(slide, Inches(0.7), Inches(0.55), Inches(8), Inches(0.4), kicker,
-              size=13, bold=True, color=COLORS["lucky_copper"], font=FONT_BODY)
+              size=14, bold=True, color=COLORS["lucky_copper"], font=FONT_BODY)
     _add_text(slide, Inches(0.7), Inches(0.9), Inches(9.7), Inches(1.0), ev["title"],
               size=26, bold=True, font=FONT_HEADLINE)
     _add_text(slide, Inches(0.7), Inches(1.8), Inches(9.7), Inches(0.4),

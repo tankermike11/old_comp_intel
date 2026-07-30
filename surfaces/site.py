@@ -35,6 +35,7 @@ from surfaces.brand import (
     FONT_BODY,
     FONT_HEADLINE,
     FONT_MONO,
+    accessible_tint,
     best_text_color,
 )
 
@@ -289,10 +290,25 @@ _tier_css = "\n".join(
     for i, color in enumerate(_TIER_COLORS)
 )
 
+# --accent / --accent-warm are also used as plain TEXT (links, the "Moderate"
+# bucket label, the convergence pill) directly on the page background — a
+# different situation from the tier badges above (which are filled chips with
+# best_text_color's binary dark/white choice). Swapping a link's color to
+# plain black/white would erase which brand hue it is, so instead nudge the
+# color's own lightness just enough to clear AA contrast, preserving hue.
+# Light mode's --bg (bone) has lower luminance than --surface (white), so
+# targeting --bg covers both; dark mode's accents already pass and come back
+# unchanged.
+_accent_text_light = accessible_tint(_L["signal_blue"], _L["bg"])
+_accent_warm_text_light = accessible_tint(_L["lucky_copper"], _L["bg"])
+_accent_text_dark = accessible_tint(_D["accent_blue"], _D["bg"])
+_accent_warm_text_dark = accessible_tint(_D["accent_copper"], _D["bg"])
+
 STYLE_CSS = f"""
 :root {{
   --bg: #{_D['bg']}; --surface: #{_D['surface']}; --fg: #{_D['text_primary']}; --muted: #{_D['text_secondary']};
   --border: #{_D['text_secondary']}33; --accent: #{_D['accent_blue']}; --accent-warm: #{_D['accent_copper']};
+  --accent-text: #{_accent_text_dark}; --accent-warm-text: #{_accent_warm_text_dark};
   --positive: #{_D['positive']}; --negative: #{_D['negative']};
   --font-headline: '{FONT_HEADLINE}', -apple-system, 'Segoe UI', sans-serif;
   --font-body: '{FONT_BODY}', -apple-system, 'Segoe UI', sans-serif;
@@ -306,6 +322,7 @@ STYLE_CSS = f"""
   :root {{
     --bg: #{_L['bg']}; --surface: #{_L['surface']}; --fg: #{_L['text_primary']}; --muted: #{_L['text_secondary']};
     --border: #{_L['text_primary']}22; --accent: #{_L['signal_blue']}; --accent-warm: #{_L['lucky_copper']};
+    --accent-text: #{_accent_text_light}; --accent-warm-text: #{_accent_warm_text_light};
     --positive: #{_L['ledger_green']}; --negative: #{_L['negative_red']};
     {_tier_vars_light};
   }}
@@ -313,12 +330,14 @@ STYLE_CSS = f"""
 :root[data-theme="light"] {{
   --bg: #{_L['bg']}; --surface: #{_L['surface']}; --fg: #{_L['text_primary']}; --muted: #{_L['text_secondary']};
   --border: #{_L['text_primary']}22; --accent: #{_L['signal_blue']}; --accent-warm: #{_L['lucky_copper']};
+  --accent-text: #{_accent_text_light}; --accent-warm-text: #{_accent_warm_text_light};
   --positive: #{_L['ledger_green']}; --negative: #{_L['negative_red']};
   {_tier_vars_light};
 }}
 :root[data-theme="dark"] {{
   --bg: #{_D['bg']}; --surface: #{_D['surface']}; --fg: #{_D['text_primary']}; --muted: #{_D['text_secondary']};
   --border: #{_D['text_secondary']}33; --accent: #{_D['accent_blue']}; --accent-warm: #{_D['accent_copper']};
+  --accent-text: #{_accent_text_dark}; --accent-warm-text: #{_accent_warm_text_dark};
   --positive: #{_D['positive']}; --negative: #{_D['negative']};
   {_tier_vars_dark};
 }}
@@ -326,13 +345,13 @@ STYLE_CSS = f"""
 body {{ margin: 0; background: var(--bg); color: var(--fg); font-family: var(--font-body); line-height: 1.55; }}
 main {{ max-width: 900px; margin: 0 auto; padding: 24px 20px 80px; }}
 h1, h2, h3 {{ font-family: var(--font-headline); text-wrap: balance; }}
-a {{ color: var(--accent); }}
+a {{ color: var(--accent-text); }}
 a:focus-visible, button:focus-visible, summary:focus-visible {{ outline: 2px solid var(--accent); outline-offset: 2px; }}
 .site-header {{ display: flex; justify-content: space-between; align-items: center; padding: 14px 24px; border-bottom: 1px solid var(--border); flex-wrap: wrap; gap: 12px; }}
 .brand {{ font-family: var(--font-headline); font-weight: 700; }}
 .brand span {{ font-family: var(--font-body); font-weight: 400; color: var(--muted); }}
 .site-header nav a {{ margin-left: 16px; text-decoration: none; color: var(--fg); }}
-.site-header nav a.active {{ color: var(--accent); font-weight: 600; }}
+.site-header nav a.active {{ color: var(--accent-text); font-weight: 600; }}
 .site-footer {{ text-align: center; color: var(--muted); font-size: 0.85em; padding: 20px; border-top: 1px solid var(--border); }}
 .muted {{ color: var(--muted); font-size: 0.9em; }}
 .empty {{ color: var(--muted); font-style: italic; }}
@@ -350,13 +369,13 @@ a:focus-visible, button:focus-visible, summary:focus-visible {{ outline: 2px sol
 .action-badge {{ font-size: 0.75em; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; padding: 3px 8px; border-radius: 4px; }}
 {_tier_css}
 .badge {{ font-size: 0.75em; padding: 3px 8px; border-radius: 4px; border: 1px solid var(--border); }}
-.badge-convergence {{ color: var(--accent-warm); border-color: var(--accent-warm); }}
+.badge-convergence {{ color: var(--accent-warm-text); border-color: var(--accent-warm); }}
 .badge-cco {{ color: var(--negative); border-color: var(--negative); }}
 .headline-score {{ margin-left: auto; font-weight: 600; }}
 .bucket-urgent {{ color: var(--negative); }}
-.bucket-notable {{ color: var(--accent-warm); }}
+.bucket-notable {{ color: var(--accent-warm-text); }}
 .bucket-quiet {{ color: var(--muted); }}
-details summary {{ cursor: pointer; color: var(--accent); margin-top: 6px; }}
+details summary {{ cursor: pointer; color: var(--accent-text); margin-top: 6px; }}
 dl.evidence {{ margin: 10px 0; }}
 dl.evidence dt {{ font-weight: 600; text-transform: capitalize; margin-top: 6px; }}
 dl.evidence dd {{ margin: 0 0 0 12px; color: var(--muted); font-style: italic; }}

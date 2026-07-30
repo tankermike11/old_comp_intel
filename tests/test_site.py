@@ -1,6 +1,9 @@
+import re
+
 import pytest
 
 from db.init_db import connect, create_schema, seed_competitors
+from surfaces.brand import contrast_ratio
 from surfaces.site import write_site
 
 
@@ -96,3 +99,36 @@ def test_site_generator_never_writes_to_the_db(conn, tmp_path):
     write_site(conn, out_dir=tmp_path / "dist")
     after = conn.execute("SELECT COUNT(*) FROM event").fetchone()[0]
     assert before == after
+
+
+def _extract_theme_block(css, selector_pattern):
+    match = re.search(rf"{selector_pattern}\s*{{([^}}]*)}}", css)
+    assert match, f"no block matching {selector_pattern!r} found in generated CSS"
+    return dict(re.findall(r"(--[\w-]+):\s*(#[0-9A-Fa-f]+)", match.group(1)))
+
+
+def test_link_and_moderate_bucket_text_meet_aa_contrast_both_themes(conn, tmp_path):
+    # Regression test for the reported bug: --accent/--accent-warm used directly
+    # as small text (links, the "Moderate" bucket label, the convergence pill)
+    # must clear 4.5:1 against both backgrounds they can appear on, in both themes.
+    write_site(conn, out_dir=tmp_path / "dist")
+    css = (tmp_path / "dist" / "assets" / "style.css").read_text(encoding="utf-8")
+
+    dark_default = _extract_theme_block(css, r":root")
+    light_media = _extract_theme_block(css, r"@media \(prefers-color-scheme: light\)\s*{\s*:root")
+
+    for theme_name, tokens, backgrounds in [
+        ("dark", dark_default, [dark_default["--bg"], dark_default["--surface"]]),
+        ("light", light_media, [light_media["--bg"], light_media["--surface"]]),
+    ]:
+        for bg in backgrounds:
+            assert contrast_ratio(tokens["--accent-text"], bg) >= 4.5, (
+                f"{theme_name} --accent-text fails AA against {bg}"
+            )
+            assert contrast_ratio(tokens["--accent-warm-text"], bg) >= 4.5, (
+                f"{theme_name} --accent-warm-text fails AA against {bg}"
+            )
+
+    assert "color: var(--accent-text)" in css
+    assert ".bucket-notable { color: var(--accent-warm-text); }" in css
+    assert ".badge-convergence { color: var(--accent-warm-text);" in css
