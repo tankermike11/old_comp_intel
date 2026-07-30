@@ -302,7 +302,13 @@ _tier_css = "\n".join(
 # light mode's --muted: the raw brand text_secondary (a fairly dark slate)
 # is heavier than a "quiet"/secondary label should read, even though its
 # contrast ratio passes easily — soften it toward the background.
-_muted_soft_light = mix_hex(_L["text_secondary"], _L["bg"], 0.3)
+#
+# t=0.3 (first attempt) overcorrected: it drops contrast to ~3.4:1 against
+# --bg, which reads as genuinely hard to read (event-meta lines, the
+# evidence/sources area), not just "less harsh" — a real regression, caught
+# by direct user report. t=0.15 keeps a comfortable ~4.75:1 margin (vs the
+# raw color's ~6.9:1) — meaningfully softer without crossing into illegible.
+_muted_soft_light = mix_hex(_L["text_secondary"], _L["bg"], 0.15)
 
 STYLE_CSS = f"""
 :root {{

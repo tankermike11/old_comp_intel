@@ -134,12 +134,15 @@ def test_no_colored_hues_used_as_plain_text_color(conn, tmp_path):
     assert "border-color: var(--accent-warm)" in css
 
 
-def test_light_mode_muted_text_is_softened_not_raw_brand_gray(conn, tmp_path):
+def test_light_mode_muted_text_is_softened_but_still_clearly_legible(conn, tmp_path):
     # The other half of the complaint: even the neutral secondary/meta text
     # color (light mode's raw text_secondary, #4A5560) read as too heavy for
-    # small de-emphasized text. It must be lighter than the raw brand value,
-    # while still clearly distinguishable from the page background (not so
-    # soft it becomes illegible).
+    # small de-emphasized text. It must be lighter than the raw brand value —
+    # but a first attempt at this (blend 0.3 toward bg) overcorrected into a
+    # genuinely hard-to-read ~3.4:1, caught by direct user report on the
+    # event-meta line and the evidence/sources area. This asserts the real
+    # AA floor (4.5:1, not the looser 3:1 large-text/UI threshold) so that
+    # regression can't silently return.
     from surfaces.brand import COLORS, _relative_luminance
 
     write_site(conn, out_dir=tmp_path / "dist")
@@ -150,4 +153,5 @@ def test_light_mode_muted_text_is_softened_not_raw_brand_gray(conn, tmp_path):
     softened_muted = light_media["--muted"]
     assert softened_muted != f"#{raw_muted}"
     assert _relative_luminance(softened_muted.lstrip("#")) > _relative_luminance(raw_muted)
-    assert contrast_ratio(softened_muted, light_media["--bg"]) >= 3.0
+    assert contrast_ratio(softened_muted, light_media["--bg"]) >= 4.5
+    assert contrast_ratio(softened_muted, light_media["--surface"]) >= 4.5
