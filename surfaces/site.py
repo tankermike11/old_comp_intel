@@ -36,7 +36,6 @@ from surfaces.brand import (
     FONT_HEADLINE,
     FONT_MONO,
     best_text_color,
-    mix_hex,
 )
 
 DEFAULT_OUT_DIR = Path(__file__).parent / "site" / "dist"
@@ -298,17 +297,18 @@ _tier_css = "\n".join(
 # in badge/pill fills and borders now (where best_text_color already picks
 # plain black/bone — exactly the two colors that read fine), never in body
 # text, links, or bucket labels. Severity there is now conveyed by font
-# weight instead of hue. The one thing that still needed a genuine fix is
-# light mode's --muted: the raw brand text_secondary (a fairly dark slate)
-# is heavier than a "quiet"/secondary label should read, even though its
-# contrast ratio passes easily — soften it toward the background.
+# weight instead of hue.
 #
-# t=0.3 (first attempt) overcorrected: it drops contrast to ~3.4:1 against
-# --bg, which reads as genuinely hard to read (event-meta lines, the
-# evidence/sources area), not just "less harsh" — a real regression, caught
-# by direct user report. t=0.15 keeps a comfortable ~4.75:1 margin (vs the
-# raw color's ~6.9:1) — meaningfully softer without crossing into illegible.
-_muted_soft_light = mix_hex(_L["text_secondary"], _L["bg"], 0.15)
+# Light mode's --muted went through two computed attempts (blend 30% toward
+# bg, then 15%) chasing "softer but still >=4.5:1 AA" — both were rejected
+# on sight (the event-meta line, the evidence/sources area) as still not
+# working. Per explicit direction, this is now a directly-chosen light gray
+# — the same "muted foreground" tone many UI systems use (close to Tailwind
+# gray-400) — rather than another derived-from-contrast-math guess. It sits
+# BELOW the WCAG AA floor for small text (~2.3:1 against --bg): a deliberate
+# call for this secondary/de-emphasized meta text, made after two
+# AA-compliant options were tried and rejected — not an oversight.
+_muted_soft_light = "9CA3AF"
 
 STYLE_CSS = f"""
 :root {{
