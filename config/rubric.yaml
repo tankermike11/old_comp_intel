@@ -1,0 +1,89 @@
+# Two-axis impact rubric v1. Source of truth: docs/OLD_CI_Impact_Scoring_Rubric.md.
+# score.py reads weights/thresholds from here — no magic numbers in code.
+
+rubric_version: v1
+
+industry_impact:
+  weights:
+    novelty: 0.25
+    reach: 0.20
+    revenue: 0.20
+    defensibility: 0.15
+    regulatory: 0.20
+
+old_relevance:
+  weights:
+    pillar: 0.25
+    audience: 0.20
+    wedge: 0.25
+    convergence: 0.15
+    time_to_impact: 0.15
+
+# Score = (raw - 1) / 4 * 100, raw in [1,5]. Bucketed identically for both axes.
+buckets:
+  - {min: 80, max: 100, label: "Very High"}
+  - {min: 60, max: 79,  label: "High"}
+  - {min: 40, max: 59,  label: "Moderate"}
+  - {min: 20, max: 39,  label: "Low"}
+  - {min: 0,  max: 19,  label: "Negligible"}
+
+# Matrix collapses each axis to High (>=60) / Moderate (40-59) / Low (<40).
+# Rows = Industry Impact tier, columns = Relevance-to-OLD tier.
+# industry_tier_order / relevance_tier_order give the Low->High step sequence
+# used by the wedge-threat escalation (moves one row up in the SAME relevance
+# column — e.g. WEDGE_WATCH [Low/High] -> COUNTER_POSITION [Moderate/High] ->
+# PRIORITIZE [High/High] — matching the worked "COUNTER-POSITION -> PRIORITIZE" example).
+industry_tier_order: [Low, Moderate, High]
+relevance_tier_order: [Low, Moderate, High]
+
+# Thresholds for collapsing a 0-100 axis score to a matrix tier (High >= 60,
+# Moderate 40-59, Low < 40), per rubric.md's action-matrix section.
+matrix_tiers:
+  high_min: 60
+  moderate_min: 40
+
+action_matrix:
+  High:
+    Low: MONITOR
+    Moderate: ACT_SOON
+    High: PRIORITIZE
+  Moderate:
+    Low: NOTE
+    Moderate: TRACK
+    High: COUNTER_POSITION
+  Low:
+    Low: LOG_ONLY
+    Moderate: LOG
+    High: WEDGE_WATCH
+
+overrides:
+  convergence_pillar_add:
+    # Axis B convergence dimension == 5 floors the action at ACT_SOON (using
+    # action_severity_order below) and fires convergence_flag.
+    convergence_dimension_threshold: 5
+    floor_action: ACT_SOON
+  wedge_threatens_escalation:
+    # wedge_direction == "threatens" with wedge dimension >= 4 escalates one
+    # industry tier within the same relevance column (grid-based, see above).
+    wedge_dimension_threshold: 4
+    wedge_direction: threatens
+  prioritize_requires_cco_review: true
+  low_confidence_action_cap:
+    # confidence == "low" caps the displayed action at ACT_SOON (using
+    # action_severity_order below) pending primary-source confirmation.
+    confidence: low
+    cap_action: ACT_SOON
+
+# Global severity order used only for the convergence floor and low-confidence
+# cap (a flat max/min comparison) — NOT used for wedge escalation, which is
+# grid-based (see industry_tier_order above).
+action_severity_order:
+  - LOG_ONLY
+  - LOG
+  - NOTE
+  - TRACK
+  - MONITOR
+  - WEDGE_WATCH
+  - COUNTER_POSITION
+  - ACT_SOON
+  - PRIORITIZE

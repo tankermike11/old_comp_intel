@@ -1,0 +1,28 @@
+# iOS App Store numeric track IDs, resolved and verified live against the
+# official iTunes Search API (https://itunes.apple.com/search) on 2026-07-30 —
+# matched by developer/seller name against each real company entity, never
+# guessed. See collectors/app_store.py.
+#
+# Android/Play Store is deliberately NOT included: there is no equivalent
+# official public API, so pulling Android release notes would mean scraping
+# the Play Store page — that requires the CCO/compliance sign-off CLAUDE.md's
+# guardrail #5 calls for, which hasn't happened yet.
+#
+# Only competitors with a real, verified iOS app are listed here. Public.com,
+# Kalshi, Polymarket, and Kraken are private/pre-IPO (no EDGAR pipeline) but do
+# have real iOS apps, so they're included — this collector doesn't care about
+# ownership/filings_path, only "is there an app to watch."
+
+ios_app_ids:
+  tastytrade: "1276909854"           # tastytrade: Invest & Trade — Tastytrade, Inc.
+  robinhood: "938003185"             # Robinhood: Trading & Investing — Robinhood Markets Inc
+  webull: "1179213067"               # Webull: Investing & Trading — Webull Technologies Pte. Ltd.
+  interactive_brokers: "454558592"   # IBKR Mobile - Invest Worldwide — Interactive Brokers LLC
+  public_com: "1204112719"           # Public: Invest & Trade — Open to the Public Investing, Inc.
+  moomoo: "1440255819"               # moomoo: Investing & Trading — Moomoo Technologies Inc.
+  coinbase: "886427730"              # Coinbase: Buy Crypto & Stocks — Coinbase, Inc.
+  kraken: "1481947260"               # Kraken: Buy Crypto & Stocks — Payward, Inc.
+  kalshi: "1632713844"               # Kalshi: Trade Events & Sports — KALSHI INC.
+  polymarket: "6648798962"           # Polymarket — Blockratize Inc
+  thinkorswim: "299366785"           # thinkorswim: Trade. Invest. — The Charles Schwab Corporation
+  crypto_com: "1262148500"           # Crypto.com: Buy BTC, ETH & CRO — CRYPTO Technology Holdings Limited

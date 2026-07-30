@@ -1,0 +1,130 @@
+# The locked Tier-1 watchlist, as data. Source of truth: docs/OLD_Tier1_Competitor_Watchlist.md.
+# Loads into the `competitor` table. Do not hardcode this elsewhere.
+
+competitors:
+  - id: tastytrade
+    name: "tastytrade (tastylive)"
+    tier: tier1
+    ownership: private
+    tickers: null
+    pillars: ["options"]
+    cadence: monthly
+    filings_path: lse
+    notes: "Owned by IG Group (LSE: IGG); back-door financials via IG's UK filings, not EDGAR."
+
+  - id: robinhood
+    name: "Robinhood"
+    tier: tier1
+    ownership: public
+    tickers: ["HOOD"]
+    pillars: ["options", "crypto", "prediction"]
+    cadence: monthly
+    filings_path: edgar
+    filer_type: domestic
+    notes: "Scale aggressor across all three pillars; Kalshi partner moving to own MIAXdx exchange."
+
+  - id: webull
+    name: "Webull"
+    tier: tier1
+    ownership: public
+    tickers: ["BULL"]
+    pillars: ["options", "crypto"]
+    cadence: monthly
+    filings_path: edgar
+    filer_type: fpi
+    notes: "Public via 2025 SPAC; newer filer, thin filing history. Files as a foreign private issuer (20-F/6-K), not domestic 10-Q/8-K as originally assumed in edgar_collector_spec.md — confirmed live against EDGAR submissions on 2026-07-29."
+
+  - id: interactive_brokers
+    name: "Interactive Brokers"
+    tier: tier1
+    ownership: public
+    tickers: ["IBKR"]
+    pillars: ["options", "crypto", "prediction", "futures"]
+    cadence: monthly
+    filings_path: edgar
+    filer_type: domestic
+    notes: "Runs its own event-contract market (ForecastEx); publishes monthly brokerage metrics."
+
+  - id: public_com
+    name: "Public.com"
+    tier: tier1
+    ownership: private
+    tickers: null
+    pillars: ["options", "crypto", "equities_etfs"]
+    cadence: monthly
+    filings_path: null
+    notes: "VC-backed; direct positioning competitor for the transparent active-trader narrative."
+
+  - id: moomoo
+    name: "Moomoo (Futu)"
+    tier: tier1
+    ownership: public
+    tickers: ["FUTU"]
+    pillars: ["options", "crypto"]
+    cadence: monthly
+    filings_path: edgar
+    filer_type: fpi
+    notes: "Foreign private issuer — parent Futu Holdings files 20-F/6-K; US-specific detail is partial."
+
+  - id: coinbase
+    name: "Coinbase"
+    tier: tier1
+    ownership: public
+    tickers: ["COIN"]
+    pillars: ["crypto", "options"]
+    cadence: monthly
+    filings_path: edgar
+    filer_type: domestic
+    notes: "Post-Deribit, most comprehensive crypto derivatives/options platform globally; watch CFTC DCM/DCO licensing."
+
+  - id: kraken
+    name: "Kraken"
+    tier: tier1
+    ownership: pre_ipo
+    tickers: null
+    pillars: ["crypto", "futures"]
+    cadence: monthly
+    filings_path: edgar
+    filer_type: domestic
+    notes: "Confidentially filed draft S-1 (Nov 2025); NinjaTrader acquisition is the convergence play. filings_path activates once S-1 is public."
+
+  - id: kalshi
+    name: "Kalshi"
+    tier: tier1
+    ownership: private
+    tickers: null
+    pillars: ["prediction", "crypto"]
+    cadence: monthly
+    filings_path: cftc
+    notes: "CFTC-regulated DCM; expanding into crypto perpetual futures."
+
+  - id: polymarket
+    name: "Polymarket"
+    tier: tier1
+    ownership: pre_ipo
+    tickers: null
+    pillars: ["prediction"]
+    cadence: monthly
+    filings_path: cftc
+    notes: "Crypto-native prediction leader; ICE/NYSE strategic investment; no filings yet."
+
+  - id: thinkorswim
+    name: "thinkorswim (Schwab)"
+    tier: benchmark
+    ownership: public
+    tickers: ["SCHW"]
+    pillars: ["options"]
+    cadence: quarterly
+    filings_path: edgar
+    filer_type: domestic
+    notes: "Founder-lineage platform; quarterly deep-audit benchmark, not monthly monitoring."
+
+  - id: crypto_com
+    name: "Crypto.com"
+    tier: convergence_watch
+    ownership: private
+    tickers: null
+    pillars: ["crypto", "prediction", "equities_etfs"]
+    cadence: on_trigger
+    filings_path: null
+    notes: "Monitored for pillar-additions aimed at US active traders, not a full Tier-1 profile."

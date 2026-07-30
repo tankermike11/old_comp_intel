@@ -1,0 +1,10 @@
+.env
+__pycache__/
+*.pyc
+.pytest_cache/
+db/*.sqlite3
+db/*.sqlite3-*
+.cik_cache.json
+surfaces/site/dist/
+surfaces/brief/*.md
+surfaces/deck/*.pptx

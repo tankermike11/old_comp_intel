@@ -1,0 +1,38 @@
+# Runtime settings for collectors. Source of truth: docs/OLD_CI_EDGAR_Collector_Spec.md.
+# Secrets (User-Agent contact, API keys) come from .env, not this file.
+
+edgar:
+  base_url: "https://data.sec.gov"
+  ticker_map_url: "https://www.sec.gov/files/company_tickers.json"
+  archives_base_url: "https://www.sec.gov/Archives/edgar/data"
+  fulltext_search_url: "https://efts.sec.gov/LATEST/search-index"
+  max_rps: 8
+  min_spacing_ms: 120
+  backoff_seconds: [1, 2, 4, 8]
+  lookback_days_first_run: 540
+  cik_cache_ttl_days: 7
+  forms_domestic: [8-K, 10-Q, 10-K, "DEF 14A", S-1, S-3]
+  forms_fpi: [20-F, 6-K, F-1]
+  convergence_queries:
+    - "prediction market"
+    - "event contract"
+    - "perpetual futures"
+    - "crypto derivatives"
+    - "options on futures"
+
+app_store:
+  base_url: "https://itunes.apple.com"
+  country: "us"
+  max_rps: 2
+  min_spacing_ms: 500
+  backoff_seconds: [1, 2, 4, 8]
+
+db:
+  path: "db/old_ci.sqlite3"
+
+run:
+  default_type: monthly
+
+analysis:
+  model: claude-sonnet-5
+  rubric_version: v1
