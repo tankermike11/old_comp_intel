@@ -24,7 +24,7 @@ from pptx.util import Inches, Pt
 
 from config import db_path
 from db.init_db import connect
-from db.queries import get_run, latest_run, list_current_events, list_unscored_events, sightings_for_event
+from db.queries import get_run, latest_run, list_events_for_run_digest, list_unscored_events, sightings_for_event
 from surfaces.brand import (
     ACTION_LABELS,
     ACTION_ORDER,
@@ -206,7 +206,7 @@ def build_deck(conn, run_id=None):
     if run is None:
         return prs
 
-    all_events = [ev for ev in list_current_events(conn) if ev["created_run_id"] == run["id"]]
+    all_events = list_events_for_run_digest(conn, run)
     pending = [ev for ev in list_unscored_events(conn) if ev["created_run_id"] == run["id"]]
 
     section_index = 1

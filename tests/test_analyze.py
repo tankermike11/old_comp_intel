@@ -100,3 +100,21 @@ def test_run_analysis_pass_skips_event_on_invalid_proposal_without_crashing(conn
     assert event[0] == "other"  # cluster.py's placeholder, never overwritten
     assert event[1] is None
     assert conn.execute("SELECT COUNT(*) FROM assessment").fetchone()[0] == 0
+
+
+def test_run_analysis_pass_retries_previously_skipped_event_on_a_later_run(conn):
+    bad_client = FakeAnthropicClient(json.dumps(_proposal_payload(category="not_a_real_category")))
+    first = run_analysis_pass(conn, "run-1", bad_client)
+    assert first["scored"] == []
+    assert len(first["skipped"]) == 1
+
+    # a later run with no new sightings for it must still retry the earlier skip
+    good_client = FakeAnthropicClient(json.dumps(_proposal_payload()))
+    second = run_analysis_pass(conn, "run-2", good_client)
+    assert second["skipped"] == []
+    assert len(second["scored"]) == 1
+    assert second["scored"][0]["event_id"] == first["skipped"][0]["event_id"]
+
+    event = conn.execute("SELECT category, current_assessment_id FROM event").fetchone()
+    assert event[0] == "acquisition_ma"
+    assert event[1] is not None

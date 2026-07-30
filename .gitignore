@@ -8,3 +8,5 @@ db/*.sqlite3-*
 surfaces/site/dist/
 surfaces/brief/*.md
 surfaces/deck/*.pptx
+.local_run_with_relaxed_tls.py
+run_output.log

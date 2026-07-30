@@ -164,6 +164,18 @@ def chunk_text(text, max_chars=12000):
 
 # --- Extraction + anti-hallucination verification ---------------------------------------
 
+def _parse_json_response(text):
+    """Models frequently wrap JSON in a ```json ... ``` fence even when told
+    "JSON only" — strip one before parsing rather than letting json.loads choke on it."""
+    text = text.strip()
+    if text.startswith("```"):
+        text = text.split("\n", 1)[1] if "\n" in text else text[3:]
+        if text.endswith("```"):
+            text = text.rsplit("```", 1)[0]
+        text = text.strip()
+    return json.loads(text)
+
+
 def extract_candidates(anthropic_client, text, section, model="claude-sonnet-5"):
     """The one place the LLM is used here: propose candidates only, never scores. Nothing
     downstream trusts this output until verify_excerpt confirms it against the source text.
@@ -176,7 +188,7 @@ def extract_candidates(anthropic_client, text, section, model="claude-sonnet-5")
     )
     raw = "".join(block.text for block in message.content if getattr(block, "type", None) == "text")
     try:
-        candidates = json.loads(raw)
+        candidates = _parse_json_response(raw)
     except json.JSONDecodeError:
         return []
     return candidates if isinstance(candidates, list) else []

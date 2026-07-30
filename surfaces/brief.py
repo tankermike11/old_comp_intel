@@ -5,9 +5,11 @@ action (most urgent first), with the "so what" line and cited sources per
 event, straight from the store. Pure reads (db.queries only) — generating a
 brief can never mutate data.
 
-This is the run's *delta* (events where created_run_id = the given run),
-distinct from the internal site's index page, which is a living view over
-ALL current scored events regardless of when they were first seen.
+This is the run's *delta* — events first clustered in this run, OR retried
+and successfully scored during this run (see
+db.queries.list_events_for_run_digest) — distinct from the internal site's
+index page, which is a living view over ALL current scored events regardless
+of when they were first seen.
 
 Run: python -m surfaces.brief [--run-id RUN_ID] [--out path/to/brief.md]
 """
@@ -17,7 +19,7 @@ from pathlib import Path
 
 from config import db_path
 from db.init_db import connect
-from db.queries import get_run, latest_run, list_current_events, list_unscored_events, sightings_for_event
+from db.queries import get_run, latest_run, list_events_for_run_digest, list_unscored_events, sightings_for_event
 from surfaces.brand import ACTION_LABELS, ACTION_ORDER, PUBLIC_BRAND, TAGLINE_PRIMARY
 
 DEFAULT_OUT_PATH = Path(__file__).parent / "brief" / "brief.md"
@@ -50,7 +52,7 @@ def generate_brief_markdown(conn, run_id=None):
     if run is None:
         return f"# {PUBLIC_BRAND} — Monthly Competitive Intelligence Brief\n\nNo runs recorded yet.\n"
 
-    all_events = [ev for ev in list_current_events(conn) if ev["created_run_id"] == run["id"]]
+    all_events = list_events_for_run_digest(conn, run)
     pending = [ev for ev in list_unscored_events(conn) if ev["created_run_id"] == run["id"]]
     by_action = {}
     for ev in all_events:

@@ -50,6 +50,40 @@ def list_current_events(conn, competitor_id=None, convergence_only=False):
     return [dict(zip(_CURRENT_EVENT_FIELDS, row)) for row in rows]
 
 
+def list_events_for_run_digest(conn, run):
+    """Events belonging to one run's digest (the brief/deck delta): events
+    whose CURRENT assessment was scored during this run's execution window.
+
+    Deliberately NOT filtered by event.created_run_id. pipeline/analyze.py
+    retries any previously-unscored event on every subsequent run (a
+    narration failure — e.g. a live model wrapping JSON in a markdown fence —
+    is retried, not permanent), so an event first clustered in an earlier run
+    but only successfully scored in THIS run must show up in THIS run's
+    digest, not the one that first clustered it (which had no assessment at
+    the time) and not be silently invisible forever. An event created and
+    scored in the same run is naturally captured too, since analysis always
+    runs after collection and before the run is marked finished — its
+    scored_at necessarily falls inside its own run's window.
+
+    `run`: a dict from get_run/latest_run (needs id, started_at, finished_at).
+    """
+    query = f"""
+        SELECT {_CURRENT_EVENT_COLUMNS}
+        FROM event e
+        JOIN competitor c ON c.id = e.competitor_id
+        JOIN assessment a ON a.id = e.current_assessment_id
+        WHERE e.current_assessment_id IS NOT NULL
+          AND a.scored_at BETWEEN :started_at AND :finished_at
+        ORDER BY a.headline_score DESC, e.event_date DESC
+    """
+    params = {
+        "started_at": run["started_at"],
+        "finished_at": run["finished_at"] or run["started_at"],
+    }
+    rows = conn.execute(query, params).fetchall()
+    return [dict(zip(_CURRENT_EVENT_FIELDS, row)) for row in rows]
+
+
 def list_unscored_events(conn, competitor_id=None):
     """Clustered events with no current assessment yet — pending or failed
     narration. Surfaced explicitly rather than silently hidden.

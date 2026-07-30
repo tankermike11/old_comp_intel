@@ -9,8 +9,14 @@ def conn(tmp_path):
     c = connect(tmp_path / "test.sqlite3")
     create_schema(c)
     seed_competitors(c)
-    c.execute("INSERT INTO run (id, type, status, started_at) VALUES ('run-0', 'monthly', 'complete', '2026-06-01T00:00:00')")
-    c.execute("INSERT INTO run (id, type, status, started_at) VALUES ('run-1', 'monthly', 'complete', '2026-07-24T00:00:00')")
+    c.execute(
+        "INSERT INTO run (id, type, status, started_at, finished_at) VALUES "
+        "('run-0', 'monthly', 'complete', '2026-06-01T00:00:00', '2026-06-01T01:00:00')"
+    )
+    c.execute(
+        "INSERT INTO run (id, type, status, started_at, finished_at) VALUES "
+        "('run-1', 'monthly', 'complete', '2026-07-24T00:00:00', '2026-07-24T01:00:00')"
+    )
 
     # A PRIORITIZE + convergence event from run-1
     c.execute(
@@ -21,8 +27,8 @@ def conn(tmp_path):
     c.execute(
         "INSERT INTO assessment (id, event_id, rubric_version, industry_score, industry_bucket, "
         "relevance_score, relevance_bucket, headline_score, wedge_direction, action, requires_cco_review, "
-        "so_what, dimension_evidence) VALUES ('a-1', 'e-priority', 'v1', 92, 'Very High', 88, 'Very High', 92, "
-        "'threatens', 'PRIORITIZE', 1, 'A market-defining consolidation.', '{}')"
+        "so_what, dimension_evidence, scored_at) VALUES ('a-1', 'e-priority', 'v1', 92, 'Very High', 88, 'Very High', 92, "
+        "'threatens', 'PRIORITIZE', 1, 'A market-defining consolidation.', '{}', '2026-07-24T00:15:00')"
     )
     c.execute("UPDATE event SET current_assessment_id = 'a-1' WHERE id = 'e-priority'")
     c.execute(
@@ -45,10 +51,26 @@ def conn(tmp_path):
     c.execute(
         "INSERT INTO assessment (id, event_id, rubric_version, industry_score, industry_bucket, "
         "relevance_score, relevance_bucket, headline_score, wedge_direction, action, requires_cco_review, "
-        "so_what, dimension_evidence) VALUES ('a-old', 'e-old', 'v1', 10, 'Negligible', 10, 'Negligible', 10, "
-        "'neutral', 'LOG_ONLY', 0, 'Old news.', '{}')"
+        "so_what, dimension_evidence, scored_at) VALUES ('a-old', 'e-old', 'v1', 10, 'Negligible', 10, 'Negligible', 10, "
+        "'neutral', 'LOG_ONLY', 0, 'Old news.', '{}', '2026-06-01T00:15:00')"
     )
     c.execute("UPDATE event SET current_assessment_id = 'a-old' WHERE id = 'e-old'")
+
+    # An event clustered in run-0 (narration failed then) but only successfully
+    # scored during run-1's execution window — the retry case pipeline/analyze.py
+    # handles. Must show up in run-1's brief (scored_at falls in its window),
+    # not run-0's (it had no assessment at run-0's brief time).
+    c.execute(
+        "INSERT INTO event (id, competitor_id, title, category, event_date, created_run_id) "
+        "VALUES ('e-retried', 'moomoo', 'Moomoo retried event', 'other', '2026-06-15', 'run-0')"
+    )
+    c.execute(
+        "INSERT INTO assessment (id, event_id, rubric_version, industry_score, industry_bucket, "
+        "relevance_score, relevance_bucket, headline_score, wedge_direction, action, requires_cco_review, "
+        "so_what, dimension_evidence, scored_at) VALUES ('a-retried', 'e-retried', 'v1', 45, 'Moderate', "
+        "48, 'Moderate', 48, 'neutral', 'TRACK', 0, 'Scored on retry.', '{}', '2026-07-24T00:30:00')"
+    )
+    c.execute("UPDATE event SET current_assessment_id = 'a-retried' WHERE id = 'e-retried'")
     c.commit()
     yield c
     c.close()
@@ -105,3 +127,13 @@ def test_write_brief_creates_file(conn, tmp_path):
 def test_brief_defaults_to_latest_run(conn):
     md = generate_brief_markdown(conn)
     assert "Coinbase closes Deribit acquisition" in md  # run-1 is latest by started_at
+
+
+def test_brief_includes_event_retried_and_scored_this_run_even_if_clustered_earlier(conn):
+    run1_md = generate_brief_markdown(conn, run_id="run-1")
+    assert "Moomoo retried event" in run1_md
+    assert "Scored on retry." in run1_md
+
+    # it must NOT double up in run-0's brief — it had no assessment at that point
+    run0_md = generate_brief_markdown(conn, run_id="run-0")
+    assert "Moomoo retried event" not in run0_md

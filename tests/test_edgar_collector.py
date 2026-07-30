@@ -185,6 +185,15 @@ class FakeHttpClient:
         return self.routes[url]
 
 
+def test_extract_candidates_strips_markdown_json_fence():
+    # Real models frequently wrap JSON in ```json ... ``` even when told "JSON only".
+    fenced = '```json\n[{"title": "T", "category_guess": "other", "verbatim_excerpt": "x", "section": "s"}]\n```'
+    client = FakeAnthropicClient({"MD&A": fenced})
+    candidates = edgar.extract_candidates(client, "some text", section="MD&A")
+    assert len(candidates) == 1
+    assert candidates[0]["title"] == "T"
+
+
 def test_process_filing_extracts_verified_sighting_and_drops_fabrication(monkeypatch):
     from config import get_settings
     settings = get_settings()

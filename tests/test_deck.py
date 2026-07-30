@@ -10,7 +10,10 @@ def conn(tmp_path):
     c = connect(tmp_path / "test.sqlite3")
     create_schema(c)
     seed_competitors(c)
-    c.execute("INSERT INTO run (id, type, status, started_at) VALUES ('run-1', 'monthly', 'complete', '2026-07-24T00:00:00')")
+    c.execute(
+        "INSERT INTO run (id, type, status, started_at, finished_at) VALUES "
+        "('run-1', 'monthly', 'complete', '2026-07-24T00:00:00', '2026-07-24T01:00:00')"
+    )
 
     c.execute(
         "INSERT INTO event (id, competitor_id, title, category, pillar, event_date, convergence_flag, created_run_id) "
@@ -20,8 +23,8 @@ def conn(tmp_path):
     c.execute(
         "INSERT INTO assessment (id, event_id, rubric_version, industry_score, industry_bucket, "
         "relevance_score, relevance_bucket, headline_score, wedge_direction, action, requires_cco_review, "
-        "so_what, dimension_evidence) VALUES ('a-1', 'e-priority', 'v1', 92, 'Very High', 88, 'Very High', 92, "
-        "'threatens', 'PRIORITIZE', 1, 'A market-defining consolidation.', '{}')"
+        "so_what, dimension_evidence, scored_at) VALUES ('a-1', 'e-priority', 'v1', 92, 'Very High', 88, 'Very High', 92, "
+        "'threatens', 'PRIORITIZE', 1, 'A market-defining consolidation.', '{}', '2026-07-24T00:15:00')"
     )
     c.execute("UPDATE event SET current_assessment_id = 'a-1' WHERE id = 'e-priority'")
     c.execute(
@@ -38,8 +41,8 @@ def conn(tmp_path):
     c.execute(
         "INSERT INTO assessment (id, event_id, rubric_version, industry_score, industry_bucket, "
         "relevance_score, relevance_bucket, headline_score, wedge_direction, action, requires_cco_review, "
-        "so_what, dimension_evidence) VALUES ('a-2', 'e-track', 'v1', 45, 'Moderate', 48, 'Moderate', 48, "
-        "'neutral', 'TRACK', 0, 'Standard digest item.', '{}')"
+        "so_what, dimension_evidence, scored_at) VALUES ('a-2', 'e-track', 'v1', 45, 'Moderate', 48, 'Moderate', 48, "
+        "'neutral', 'TRACK', 0, 'Standard digest item.', '{}', '2026-07-24T00:20:00')"
     )
     c.execute("UPDATE event SET current_assessment_id = 'a-2' WHERE id = 'e-track'")
 

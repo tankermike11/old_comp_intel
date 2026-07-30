@@ -45,12 +45,18 @@ Score conservatively and only from what the excerpts actually say. wedge scores 
 of relevance to the wedge, not direction — a competitor validating OR threatening the wedge \
 both score high on the wedge dimension."""
 
-SO_WHAT_SYSTEM_PROMPT = """You write the "so what" narration for One Lucky Dog's competitive \
-intelligence brief. You are given an event, its computed (not your own) scores, bucket \
-labels, and action, plus the dimension evidence. Write 2-4 sentences: what the development \
-is, why each axis landed where it did, the implication for OLD, the wedge direction, and the \
-recommended posture. State the action and scores exactly as given — never invent a different \
-number or action. Plain prose, no JSON, no headers."""
+SO_WHAT_SYSTEM_PROMPT = """You write the "so what" narration for One Lucky Dog (OLD)'s \
+competitive intelligence brief. OLD is a US options-first retail brokerage with crypto and \
+prediction markets as additional pillars — its name is not related to pets or dogs in any \
+way, and the brief is never about animals; every event concerns financial-services \
+competitors. OLD's defensible wedge is a content/education flywheel, an anti-guru stance, \
+income-as-architecture product design, and transparent active-trader pricing.
+
+You are given an event, its computed (not your own) scores, bucket labels, and action, plus \
+the dimension evidence. Write 2-4 sentences: what the development is, why each axis landed \
+where it did, the implication for OLD, the wedge direction, and the recommended posture. \
+State the action and scores exactly as given — never invent a different number or action. \
+Plain prose, no JSON, no headers."""
 
 
 def _validate_proposal(raw, source_text, rubric):
@@ -105,6 +111,18 @@ def _extract_text(message):
     return "".join(block.text for block in message.content if getattr(block, "type", None) == "text")
 
 
+def _parse_json_response(text):
+    """Models frequently wrap JSON in a ```json ... ``` fence even when told
+    "JSON only" — strip one before parsing rather than letting json.loads choke on it."""
+    text = text.strip()
+    if text.startswith("```"):
+        text = text.split("\n", 1)[1] if "\n" in text else text[3:]
+        if text.endswith("```"):
+            text = text.rsplit("```", 1)[0]
+        text = text.strip()
+    return json.loads(text)
+
+
 def propose_assessment(anthropic_client, event, sightings, model="claude-sonnet-5", rubric=None):
     """event: {"title": ...}. sightings: list of {surface, source_url, observed_at, raw_excerpt}.
     Returns a validated proposal dict, or raises ValueError if the model's output fails
@@ -125,7 +143,7 @@ def propose_assessment(anthropic_client, event, sightings, model="claude-sonnet-
         system=ASSESSMENT_PROPOSAL_SYSTEM_PROMPT,
         messages=[{"role": "user", "content": user_content}],
     )
-    raw = json.loads(_extract_text(message))
+    raw = _parse_json_response(_extract_text(message))
     return _validate_proposal(raw, source_text, rubric)
 
 

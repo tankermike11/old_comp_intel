@@ -75,6 +75,14 @@ def test_propose_assessment_accepts_valid_grounded_proposal():
     assert result["relevance_dimensions"]["convergence"] == 5
 
 
+def test_propose_assessment_strips_markdown_json_fence():
+    # Real models frequently wrap JSON in ```json ... ``` even when told "JSON only".
+    fenced = "```json\n" + _valid_proposal_json() + "\n```"
+    client = FakeAnthropicClient(fenced)
+    result = narrate.propose_assessment(client, EVENT, SIGHTINGS)
+    assert result["category"] == "acquisition_ma"
+
+
 def test_propose_assessment_rejects_invalid_category():
     payload = json.loads(_valid_proposal_json())
     payload["category"] = "not_a_real_category"
