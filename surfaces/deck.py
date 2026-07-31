@@ -14,6 +14,7 @@ font, same as any other generated deck.
 Run: python -m surfaces.deck [--run-id RUN_ID] [--out path/to/deck.pptx]
 """
 import argparse
+import textwrap
 from pathlib import Path
 
 from pptx import Presentation
@@ -70,6 +71,17 @@ def _add_text(slide, left, top, width, height, text, size=18, bold=False,
     run.font.name = font
     run.font.color.rgb = _rgb(color)
     return box
+
+
+def _wrapped_line_count(text, width_in, size_pt):
+    """Estimate how many lines `text` wraps to in a box `width_in` inches wide
+    at `size_pt`, using an average-character-width heuristic (bold sans-serif
+    headline fonts run ~0.52x point size per character). No real font-metrics
+    API is available at generation time — this only needs to be conservative
+    enough to reserve the right amount of vertical space, not pixel-exact.
+    """
+    chars_per_line = max(int((width_in * 72) / (size_pt * 0.52)), 10)
+    return len(textwrap.wrap(text, width=chars_per_line) or [""])
 
 
 def _add_rect(slide, left, top, width, height, fill_hex, line_hex=None):
@@ -167,22 +179,34 @@ def _build_event_slide(prs, ev, sightings):
     # it does clear, without giving up the copper accent color entirely.
     _add_text(slide, Inches(0.7), Inches(0.55), Inches(8), Inches(0.4), kicker,
               size=14, bold=True, color=COLORS["lucky_copper"], font=FONT_BODY)
-    _add_text(slide, Inches(0.7), Inches(0.9), Inches(9.7), Inches(1.0), ev["title"],
-              size=26, bold=True, font=FONT_HEADLINE)
-    _add_text(slide, Inches(0.7), Inches(1.8), Inches(9.7), Inches(0.4),
+
+    # Title box height tracks the actual wrapped line count instead of a fixed
+    # 1.0in — long titles (3+ lines) used to overflow into the subtitle below
+    # it. Everything from the subtitle down shifts by the same delta, borrowed
+    # from the so_what box (which stays anchored at a fixed bottom position),
+    # so the layout never overflows the slide regardless of title length.
+    title_size = 26
+    title_width_in = 9.7
+    line_count = _wrapped_line_count(ev["title"], title_width_in, title_size)
+    title_height_in = max(1.0, line_count * title_size * 1.2 / 72 + 0.15)
+    delta_in = max(0.0, title_height_in - 1.0)
+
+    _add_text(slide, Inches(0.7), Inches(0.9), Inches(title_width_in), Inches(title_height_in),
+              ev["title"], size=title_size, bold=True, font=FONT_HEADLINE)
+    _add_text(slide, Inches(0.7), Inches(1.8 + delta_in), Inches(9.7), Inches(0.4),
               f"{ev['competitor_name']} · {ev['category']} · {ev['event_date']}",
               size=13, color=COLORS["text_secondary"], font=FONT_BODY)
 
-    _add_score_bar(slide, Inches(0.7), Inches(2.45), "Industry Impact",
+    _add_score_bar(slide, Inches(0.7), Inches(2.45 + delta_in), "Industry Impact",
                     ev["industry_score"], ev["industry_bucket"], COLORS["signal_blue"])
-    _add_score_bar(slide, Inches(0.7), Inches(3.25), "Relevance to OLD",
+    _add_score_bar(slide, Inches(0.7), Inches(3.25 + delta_in), "Relevance to OLD",
                     ev["relevance_score"], ev["relevance_bucket"], COLORS["lucky_copper"])
 
     if ev["requires_cco_review"]:
-        _add_text(slide, Inches(7.2), Inches(2.45), Inches(4.5), Inches(0.9),
+        _add_text(slide, Inches(7.2), Inches(2.45 + delta_in), Inches(4.5), Inches(0.9),
                    "Requires CCO review before confirmation", size=12, bold=True, color=COLORS["negative_red"])
 
-    _add_text(slide, Inches(0.7), Inches(4.15), Inches(11.9), Inches(2.1),
+    _add_text(slide, Inches(0.7), Inches(4.15 + delta_in), Inches(11.9), Inches(2.1 - delta_in),
               ev["so_what"] or "(no narration available)", size=16, font=FONT_BODY)
 
     if sightings:
