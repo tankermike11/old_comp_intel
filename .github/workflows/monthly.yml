@@ -9,6 +9,13 @@ name: Monthly CI collection pass
 # Required repository secrets (Settings > Secrets and variables > Actions):
 #   SEC_USER_AGENT     e.g. "One Lucky Dog research@oneluckydog.com"
 #   ANTHROPIC_API_KEY  a valid Anthropic API key
+#   VERCEL_TOKEN       Vercel account token (Account Settings > Tokens)
+#   VERCEL_ORG_ID      from Vercel Project Settings > General, or .vercel/project.json
+#   VERCEL_PROJECT_ID  from Vercel Project Settings > General, or .vercel/project.json
+#
+# The deployed site's basic-auth password (SITE_PASSWORD) is NOT a GitHub
+# secret — it's a Vercel project environment variable, read by
+# surfaces/site/middleware.js at request time, not at build/deploy time.
 #
 # Required repository setting: Settings > Actions > General > Workflow
 # permissions must allow "Read and write permissions" for the default
@@ -108,3 +115,19 @@ jobs:
             git commit -m "Monthly CI run: $(date -u +%Y-%m-%d)"
             git push origin data
           fi
+
+      - name: Prepare Vercel deploy config
+        run: |
+          cp source/surfaces/site/middleware.js data/site/dist/middleware.js
+          cp source/surfaces/site/package.json data/site/dist/package.json
+
+      - name: Install Vercel CLI
+        run: npm install -g vercel@latest
+
+      - name: Deploy site to Vercel
+        working-directory: data/site/dist
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: vercel deploy --prod --token="$VERCEL_TOKEN" --yes

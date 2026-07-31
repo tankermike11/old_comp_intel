@@ -1,0 +1,8 @@
+{
+  "name": "old-ci-site-deploy",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@vercel/functions": "^3.7.6"
+  }
+}
