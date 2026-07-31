@@ -18,7 +18,7 @@ from pathlib import Path
 import httpx
 from bs4 import BeautifulSoup
 
-from collectors.rate_limiter import RateLimiter, get_with_backoff
+from collectors.rate_limiter import RateLimiter, get_with_backoff, make_http_client
 from config import get_sec_user_agent, get_settings
 
 CIK_CACHE_PATH = Path(__file__).parent.parent / ".cik_cache.json"
@@ -303,5 +303,5 @@ def build_client_and_limiter(settings=None):
         max_rps=settings["edgar"]["max_rps"],
         min_spacing_ms=settings["edgar"]["min_spacing_ms"],
     )
-    client = httpx.Client(timeout=30.0)
+    client = make_http_client(timeout=30.0)
     return client, limiter

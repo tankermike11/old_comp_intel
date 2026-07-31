@@ -21,9 +21,7 @@ import hashlib
 import re
 import uuid
 
-import httpx
-
-from collectors.rate_limiter import RateLimiter, get_with_backoff
+from collectors.rate_limiter import RateLimiter, get_with_backoff, make_http_client
 
 
 def build_client_and_limiter(settings):
@@ -31,7 +29,7 @@ def build_client_and_limiter(settings):
         max_rps=settings["app_store"]["max_rps"],
         min_spacing_ms=settings["app_store"]["min_spacing_ms"],
     )
-    client = httpx.Client(timeout=30.0)
+    client = make_http_client(timeout=30.0)
     return client, limiter
 
 

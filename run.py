@@ -17,6 +17,7 @@ from datetime import datetime, timezone
 import anthropic
 
 from collectors import app_store, edgar
+from collectors.rate_limiter import make_http_client
 from config import db_path, get_anthropic_api_key, get_app_store_ids, get_competitors, get_settings
 from db.init_db import connect
 from db.store import (
@@ -84,7 +85,9 @@ def run_monthly_edgar_pass(run_id=None, run_type="monthly"):
     run_id = run_id or f"{run_date.strftime('%Y-%m')}-{run_type}-{uuid.uuid4().hex[:8]}"
 
     conn = connect(db_path())
-    anthropic_client = anthropic.Anthropic(api_key=get_anthropic_api_key())
+    anthropic_client = anthropic.Anthropic(
+        api_key=get_anthropic_api_key(), http_client=make_http_client()
+    )
     edgar_client, edgar_limiter = edgar.build_client_and_limiter(settings)
     app_store_client, app_store_limiter = app_store.build_client_and_limiter(settings)
 

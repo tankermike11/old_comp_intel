@@ -3,7 +3,26 @@ instance per collector run — every request goes through it. Enforces
 <=max_rps with a minimum spacing floor, and retries on 429 with the
 configured exponential backoff.
 """
+import os
+import ssl
 import time
+
+import certifi
+import httpx
+
+
+def make_http_client(**kwargs):
+    """httpx.Client using the OS/SSL_CERT_FILE trust store with X.509 strict-mode
+    checks relaxed. Some local TLS-inspecting proxies (e.g. antivirus HTTPS
+    scanning) mint root certs that are CA:TRUE but don't mark Basic Constraints
+    critical — a real RFC 5280 violation that Python's default strict verification
+    (on since 3.13) rejects outright, even once the root is trusted. We still
+    verify the full chain against a real trust store, just without that one
+    strict-mode check.
+    """
+    ctx = ssl.create_default_context(cafile=os.environ.get("SSL_CERT_FILE", certifi.where()))
+    ctx.verify_flags &= ~ssl.VERIFY_X509_STRICT
+    return httpx.Client(verify=ctx, **kwargs)
 
 
 class RateLimiter:
