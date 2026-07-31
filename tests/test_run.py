@@ -34,7 +34,7 @@ class FakeMessages:
 
 
 class FakeAnthropic:
-    def __init__(self, api_key):
+    def __init__(self, api_key, **kwargs):
         self.api_key = api_key
         self.messages = FakeMessages()
 
